@@ -11,34 +11,48 @@ const proxySettings = reactive<ProxySettings>({
   password: ''
 })
 
-// Load from localStorage on init
-if (import.meta.client) {
-  const saved = localStorage.getItem('proxy_settings')
-  if (saved) {
-    try {
-      Object.assign(proxySettings, JSON.parse(saved))
-    } catch (e) {
-      console.error('Failed to parse proxy settings', e)
-    }
-  }
-}
-
-// Watch for changes and save
-watch(proxySettings, (newVal) => {
-  if (import.meta.client) {
-    localStorage.setItem('proxy_settings', JSON.stringify(newVal))
-  }
-}, { deep: true })
+let isInitialized = false
 
 export const useProxyConfig = () => {
+  const fetchSettings = async () => {
+    try {
+      const data = await $fetch<ProxySettings>('/api/settings/proxy')
+      if (data) {
+        Object.assign(proxySettings, data)
+      }
+      isInitialized = true
+    } catch (e) {
+      console.error('Failed to fetch proxy settings from DB', e)
+    }
+  }
+
+  const saveSettings = async () => {
+    if (!isInitialized) return
+    try {
+      await $fetch('/api/settings/proxy', {
+        method: 'POST',
+        body: proxySettings
+      })
+    } catch (e) {
+      console.error('Failed to save proxy settings to DB', e)
+    }
+  }
+
   const proxyUrl = computed(() => {
     if (!proxySettings.enabled) return ''
     const auth = proxySettings.username ? `${proxySettings.username}:${proxySettings.password}@` : ''
     return `${proxySettings.protocol}://${auth}${proxySettings.host}:${proxySettings.port}`
   })
 
+  // Watch and save
+  watch(proxySettings, () => {
+    saveSettings()
+  }, { deep: true })
+
   return {
     proxySettings,
-    proxyUrl
+    proxyUrl,
+    fetchSettings,
+    saveSettings
   }
 }

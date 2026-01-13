@@ -1,140 +1,215 @@
 <template>
   <div class="max-w-[1800px] mx-auto grid grid-cols-1 md:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_320px] min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
     <!-- Left Sidebar -->
-    <aside class="hidden md:block bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 py-5 sticky top-0 h-screen overflow-y-auto z-10">
-      <div class="px-5 pb-5 border-b border-slate-200 dark:border-slate-800 mb-5">
-        <div class="flex items-center text-xl font-bold text-primary">
-          <i class="fas fa-brain mr-2.5 text-2xl bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent"></i>
-          智能新闻聚合
-          <span class="text-[10px] bg-gradient-to-r from-emerald-500 to-amber-500 text-white px-2 py-0.5 rounded-full ml-2 font-medium">FreeRSS + AI</span>
+    <aside class="hidden md:block bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 sticky top-0 h-screen flex flex-col z-10">
+      <div class="flex-1 overflow-y-auto py-5 custom-scrollbar">
+        <div class="px-5 pb-5 border-b border-slate-200 dark:border-slate-800 mb-5">
+          <div class="flex items-center text-xl font-bold text-slate-900 dark:text-white mb-2">
+            <div class="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden mr-2.5 flex-shrink-0">
+              <img src="/logo.png" alt="T-News Logo" class="w-full h-full object-contain p-1" />
+            </div>
+            T-News
+            <span class="text-[10px] bg-gradient-to-r from-emerald-500 to-amber-500 text-white px-2 py-0.5 rounded-full ml-2 font-medium">FreeRSS + AI</span>
+          </div>
+          <div class="inline-flex items-center bg-blue-50 dark:bg-blue-900/30 text-primary text-[11px] px-2.5 py-1 rounded-full border border-blue-100 dark:border-blue-800">
+            <i class="fas fa-robot mr-1.5 text-[10px]"></i>
+            实时AI摘要与分析
+          </div>
         </div>
-        <div class="inline-flex items-center bg-blue-50 dark:bg-blue-900/30 text-primary text-[11px] px-2.5 py-1 rounded-full mt-2 border border-blue-100 dark:border-blue-800">
-          <i class="fas fa-robot mr-1.5 text-[10px]"></i>
-          实时AI摘要与分析
+
+        <div class="px-5 mb-6">
+          <div class="text-[11px] uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-4 font-bold">新闻源管理</div>
+          <ul class="space-y-1">
+            <li
+              class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 group"
+              :class="{ 'bg-blue-50 dark:bg-blue-900/20 border-primary text-primary font-medium': currentSource === 'all', 'text-slate-600 dark:text-slate-400': currentSource !== 'all' }"
+              @click="selectSource('all')"
+            >
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-indigo-500 text-white shadow-sm">
+                <i class="fas fa-layer-group"></i>
+              </div>
+              <span class="text-sm flex-grow">全部聚合</span>
+              <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ newsData.length }}</span>
+            </li>
+
+            <li
+              v-for="source in enabledRssSources"
+              :key="source.id"
+              class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 group"
+              :class="{ 'bg-blue-50 dark:bg-blue-900/20 border-primary text-primary font-medium': currentSource === source.id, 'text-slate-600 dark:text-slate-400': currentSource !== source.id }"
+              @click="selectSource(source.id)"
+              @contextmenu.prevent.stop="handleRssContextMenu($event, source)"
+            >
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 text-white shadow-sm" :style="{ backgroundColor: source.color }">
+                <i :class="`fas fa-${source.icon}`"></i>
+              </div>
+              <span class="text-sm flex-grow">{{ source.name }}</span>
+              <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ countBySource(source.id) }}</span>
+            </li>
+          </ul>
         </div>
-      </div>
 
-      <div class="px-5 mb-6">
-        <div class="text-[11px] uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-4 font-bold">新闻源管理</div>
-        <ul class="space-y-1">
-          <li
-            class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 group"
-            :class="{ 'bg-blue-50 dark:bg-blue-900/20 border-primary text-primary font-medium': currentSource === 'all', 'text-slate-600 dark:text-slate-400': currentSource !== 'all' }"
-            @click="selectSource('all')"
-          >
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-indigo-500 text-white shadow-sm">
-              <i class="fas fa-layer-group"></i>
-            </div>
-            <span class="text-sm flex-grow">全部聚合</span>
-            <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ newsData.length }}</span>
-          </li>
+        <div class="px-5 mb-6">
+          <div class="text-[11px] uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-4 font-bold">AI分类筛选</div>
+          <ul class="space-y-1">
+            <li
+              class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+              :class="{ 'bg-blue-50 dark:bg-blue-900/20 border-primary text-primary font-medium': currentAiFilter === 'all', 'text-slate-600 dark:text-slate-400': currentAiFilter !== 'all' }"
+              @click="applyAiFilter('all')"
+            >
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-indigo-500 text-white shadow-sm">
+                <i class="fas fa-globe"></i>
+              </div>
+              <span class="text-sm flex-grow">全部新闻</span>
+              <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ newsData.length }}</span>
+            </li>
+            <li
+              class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+              :class="{ 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-medium': currentAiFilter === 'ai-highlight', 'text-slate-600 dark:text-slate-400': currentAiFilter !== 'ai-highlight' }"
+              @click="applyAiFilter('ai-highlight')"
+            >
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-emerald-500 text-white shadow-sm">
+                <i class="fas fa-star"></i>
+              </div>
+              <span class="text-sm flex-grow">AI重点推荐</span>
+              <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ highlightCount }}</span>
+            </li>
+            <li
+              class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+              :class="{ 'bg-amber-50 dark:bg-amber-900/20 border-amber-500 text-amber-600 dark:text-amber-400 font-medium': currentAiFilter === 'ai-summary', 'text-slate-600 dark:text-slate-400': currentAiFilter !== 'ai-summary' }"
+              @click="applyAiFilter('ai-summary')"
+            >
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-amber-500 text-white shadow-sm">
+                <i class="fas fa-robot"></i>
+              </div>
+              <span class="text-sm flex-grow">已生成摘要</span>
+              <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ summaryCount }}</span>
+            </li>
+          </ul>
+        </div>
 
-          <li
-            v-for="source in enabledRssSources"
-            :key="source.id"
-            class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 group"
-            :class="{ 'bg-blue-50 dark:bg-blue-900/20 border-primary text-primary font-medium': currentSource === source.id, 'text-slate-600 dark:text-slate-400': currentSource !== source.id }"
-            @click="selectSource(source.id)"
-          >
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 text-white shadow-sm" :style="{ backgroundColor: source.color }">
-              <i :class="`fas fa-${source.icon}`"></i>
-            </div>
-            <span class="text-sm flex-grow">{{ source.name }}</span>
-            <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ countBySource(source.id) }}</span>
-          </li>
-        </ul>
-        <button 
-          class="w-full mt-4 p-3 bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-500 dark:text-slate-400 text-sm flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-primary hover:text-primary transition-all group"
-          @click="openModal()"
-        >
-          <i class="fas fa-plus mr-2 group-hover:scale-110 transition-transform"></i>
-          添加RSS源
-        </button>
-      </div>
-
-      <div class="px-5 mb-6">
-        <div class="text-[11px] uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-4 font-bold">AI分类筛选</div>
-        <ul class="space-y-1">
-          <li
-            class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-            :class="{ 'bg-blue-50 dark:bg-blue-900/20 border-primary text-primary font-medium': currentAiFilter === 'all', 'text-slate-600 dark:text-slate-400': currentAiFilter !== 'all' }"
-            @click="applyAiFilter('all')"
-          >
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-indigo-500 text-white shadow-sm">
-              <i class="fas fa-globe"></i>
-            </div>
-            <span class="text-sm flex-grow">全部新闻</span>
-            <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ newsData.length }}</span>
-          </li>
-          <li
-            class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-            :class="{ 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-medium': currentAiFilter === 'ai-highlight', 'text-slate-600 dark:text-slate-400': currentAiFilter !== 'ai-highlight' }"
-            @click="applyAiFilter('ai-highlight')"
-          >
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-emerald-500 text-white shadow-sm">
-              <i class="fas fa-star"></i>
-            </div>
-            <span class="text-sm flex-grow">AI重点推荐</span>
-            <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ highlightCount }}</span>
-          </li>
-          <li
-            class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-            :class="{ 'bg-amber-50 dark:bg-amber-900/20 border-amber-500 text-amber-600 dark:text-amber-400 font-medium': currentAiFilter === 'ai-summary', 'text-slate-600 dark:text-slate-400': currentAiFilter !== 'ai-summary' }"
-            @click="applyAiFilter('ai-summary')"
-          >
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-amber-500 text-white shadow-sm">
-              <i class="fas fa-robot"></i>
-            </div>
-            <span class="text-sm flex-grow">已生成摘要</span>
-            <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ summaryCount }}</span>
-          </li>
-        </ul>
-      </div>
-
-      <div class="px-5 mb-6">
-        <div class="text-[11px] uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-4 font-bold">AI检测标签</div>
-        <div class="flex flex-wrap gap-2">
-          <span class="text-[10px] px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-medium">科技动态</span>
-          <span class="text-[10px] px-2 py-1 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800 font-medium">财经要闻</span>
-          <span class="text-[10px] px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 font-medium">积极情绪</span>
-          <span class="text-[10px] px-2 py-1 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800 font-medium text-nowrap">高重要性</span>
-          <span class="text-[10px] px-2 py-1 rounded bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700 font-medium">国际新闻</span>
-          <span class="text-[10px] px-2 py-1 rounded bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-800 font-medium">争议话题</span>
+        <div class="px-5 mb-6">
+          <div class="text-[11px] uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-4 font-bold">AI检测标签</div>
+          <div class="flex flex-wrap gap-2">
+            <span class="text-[10px] px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-medium">科技动态</span>
+            <span class="text-[10px] px-2 py-1 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800 font-medium">财经要闻</span>
+            <span class="text-[10px] px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 font-medium">积极情绪</span>
+            <span class="text-[10px] px-2 py-1 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800 font-medium text-nowrap">高重要性</span>
+            <span class="text-[10px] px-2 py-1 rounded bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700 font-medium">国际新闻</span>
+            <span class="text-[10px] px-2 py-1 rounded bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-800 font-medium">争议话题</span>
+          </div>
         </div>
       </div>
 
-      <!-- Settings & Theme Toggle in Sidebar -->
-      <div class="px-5 mt-auto pt-5 border-t border-slate-200 dark:border-slate-800 space-y-3">
-        <NuxtLink 
-          to="/settings" 
-          class="flex items-center justify-between w-full p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-all border border-slate-200 dark:border-slate-700"
-        >
-          <span class="text-xs font-medium">系统设置</span>
-          <i class="fas fa-cog"></i>
-        </NuxtLink>
+      <div v-if="user" class="px-5 py-5 border-t border-slate-200 dark:border-slate-800 relative bg-white dark:bg-slate-900">
         <div 
-          class="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 cursor-pointer transition-all hover:bg-slate-200 dark:hover:bg-slate-700"
-          @click="toggleTheme"
+          class="flex items-center p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all group"
+          @click="toggleUserMenu"
+        >
+          <div class="relative">
+            <img 
+              v-if="user.avatarUrl"
+              :src="user.avatarUrl" 
+              class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-700 shadow-sm object-cover"
+              alt="User Avatar"
+            />
+            <div v-else class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-700 shadow-sm bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+              {{ (user?.displayName || user?.username || 'U').charAt(0).toUpperCase() }}
+            </div>
+            <div class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
+          </div>
+          <div class="ml-3 flex-grow overflow-hidden">
+            <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ user.displayName || user.username }}</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">{{ user.email }}</div>
+          </div>
+          <i class="fas fa-chevron-up text-slate-400 group-hover:text-primary transition-colors text-xs ml-2"></i>
+        </div>
+
+        <!-- Backdrop for closing menu -->
+        <div 
+          v-if="isUserMenuOpen" 
+          class="fixed inset-0 z-40" 
+          @click="closeUserMenu"
+        ></div>
+
+        <!-- User Dropdown Menu -->
+        <transition
+          enter-active-class="transition duration-200 ease-out"
+          enter-from-class="transform scale-95 opacity-0 translate-y-2"
+          enter-to-class="transform scale-100 opacity-100 translate-y-0"
+          leave-active-class="transition duration-150 ease-in"
+          leave-from-class="transform scale-100 opacity-100 translate-y-0"
+          leave-to-class="transform scale-95 opacity-0 translate-y-2"
         >
           <div 
-            class="flex items-center justify-center flex-1 py-1.5 rounded-full transition-all duration-300"
-            :class="!isDarkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'"
+            v-if="isUserMenuOpen" 
+            class="absolute bottom-full left-5 right-5 mb-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-2 z-50 overflow-hidden"
           >
-            <Sun class="h-4 w-4 mr-1.5" />
-            <span class="text-[10px] font-bold">浅色</span>
+            <div class="p-3 border-b border-slate-100 dark:border-slate-800 mb-1">
+              <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">个人中心</div>
+              <div class="flex items-center">
+                <img v-if="user.avatarUrl" :src="user.avatarUrl" class="w-8 h-8 rounded-full mr-2 object-cover" />
+                <div v-else class="w-8 h-8 rounded-full mr-2 bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">
+                  {{ (user?.displayName || user?.username || 'U').charAt(0).toUpperCase() }}
+                </div>
+                <div class="overflow-hidden">
+                  <div class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ user.displayName || user.username }}</div>
+                  <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">{{ user.email }}</div>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              @click="openEditProfileModal"
+              class="flex items-center w-full p-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <i class="fas fa-user-edit mr-3 text-primary"></i>
+              修改信息
+            </button>
+
+            <NuxtLink 
+              to="/settings" 
+              class="flex items-center w-full p-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              @click="closeUserMenu"
+            >
+              <Settings class="mr-3 h-4 w-4 text-primary" />
+              系统设置
+            </NuxtLink>
+
+            <div class="p-2 mt-1 border-t border-slate-100 dark:border-slate-800">
+              <div 
+                class="flex items-center bg-slate-50 dark:bg-slate-800/50 p-1 rounded-full border border-slate-200 dark:border-slate-700 cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                @click="toggleTheme"
+              >
+                <div 
+                  class="flex items-center justify-center flex-1 py-1 rounded-full transition-all duration-300"
+                  :class="!isDarkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'"
+                >
+                  <Sun class="h-3.5 w-3.5 mr-1.5" />
+                  <span class="text-[9px] font-bold">浅色</span>
+                </div>
+                <div 
+                  class="flex items-center justify-center flex-1 py-1 rounded-full transition-all duration-300"
+                  :class="isDarkMode ? 'bg-slate-900 shadow-sm text-indigo-400' : 'text-slate-500'"
+                >
+                  <Moon class="h-3.5 w-3.5 mr-1.5" />
+                  <span class="text-[9px] font-bold">深色</span>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              @click="logout"
+              class="flex items-center w-full p-2.5 mt-1 rounded-lg text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+            >
+              <i class="fas fa-sign-out-alt mr-3"></i>
+              退出登录
+            </button>
           </div>
-          <div 
-            class="flex items-center justify-center flex-1 py-1.5 rounded-full transition-all duration-300"
-            :class="isDarkMode ? 'bg-slate-900 shadow-sm text-indigo-400' : 'text-slate-500'"
-          >
-            <Moon class="h-4 w-4 mr-1.5" />
-            <span class="text-[10px] font-bold">深色</span>
-          </div>
-        </div>
+        </transition>
       </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 p-5 md:p-8 overflow-y-auto max-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
         <div>
@@ -427,26 +502,339 @@
       </div>
     </div>
   </div>
+
+  <!-- Edit Profile Modal -->
+  <div v-if="isEditProfileModalOpen" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fade-in" @click="isEditProfileModalOpen = false">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md p-8 relative shadow-2xl" @click.stop>
+      <button class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" @click="isEditProfileModalOpen = false">
+        <i class="fas fa-times text-2xl"></i>
+      </button>
+      
+      <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-2">修改个人信息</h2>
+      <p class="text-slate-500 dark:text-slate-400 mb-8">更新您的个人资料</p>
+
+      <div class="space-y-5">
+        <div>
+          <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">显示名称</label>
+          <input
+            v-model="editUserData.displayName"
+            type="text"
+            class="w-full px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:text-white"
+            placeholder="输入显示名称"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">电子邮箱</label>
+          <input
+            v-model="editUserData.email"
+            type="email"
+            class="w-full px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:text-white"
+            placeholder="输入电子邮箱"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">个人头像</label>
+          <div class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <div class="relative group">
+              <img v-if="editUserData.avatarUrl" :src="editUserData.avatarUrl" class="w-16 h-16 rounded-2xl object-cover border-2 border-white dark:border-slate-700 shadow-sm" />
+              <div v-else class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xl border-2 border-white dark:border-slate-700 shadow-sm">
+                {{ (editUserData.displayName || user?.username || 'U').charAt(0).toUpperCase() }}
+              </div>
+              <label class="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 rounded-2xl cursor-pointer transition-opacity">
+                <i class="fas fa-camera text-xl"></i>
+                <input type="file" class="hidden" accept="image/*" @change="handleAvatarUpload" />
+              </label>
+            </div>
+            <div class="flex-1">
+              <div class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">更换头像</div>
+              <p class="text-[10px] text-slate-500 dark:text-slate-400">支持 JPG, PNG, GIF，最大 2MB。头像将自动上传并存储。</p>
+            </div>
+          </div>
+        </div>
+
+        <button 
+          class="w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/25 mt-4"
+          @click="updateUserProfile"
+        >
+          保存修改
+        </button>
+      </div>
+    </div>
+    <!-- RSS Context Menu -->
+    <div 
+      v-if="rssContextMenu.show" 
+      class="fixed z-[9999] bg-white dark:bg-slate-900 rounded-xl shadow-2xl border-2 border-indigo-500 p-1.5 min-w-[180px]"
+      :style="{ 
+        top: `${rssContextMenu.y}px`, 
+        left: `${rssContextMenu.x}px`,
+        display: 'block !important',
+        visibility: 'visible !important',
+        opacity: '1 !important'
+      }"
+      @click.stop
+    >
+      <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">订阅源操作</div>
+        <div class="text-xs font-bold text-slate-700 dark:text-slate-300 truncate mt-1">{{ rssContextMenu.source?.name }}</div>
+      </div>
+      
+      <button 
+        @click="updateRssSourceFromMenu"
+        class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+      >
+        <RefreshCw class="mr-2.5 h-4 w-4 text-primary" />
+        更新订阅源
+      </button>
+
+      <button 
+        @click="manageRssSourceFromMenu"
+        class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+      >
+        <Settings class="mr-2.5 h-4 w-4 text-primary" />
+        管理订阅源
+      </button>
+
+      <div class="h-[1px] bg-slate-100 dark:bg-slate-800 my-1"></div>
+
+      <button 
+        @click="copyRssUrlFromMenu"
+        class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+      >
+        <i class="far fa-copy mr-3 text-slate-400"></i>
+        复制链接
+      </button>
+    </div>
+
+    <!-- Backdrop to close context menu -->
+    <div 
+      v-if="rssContextMenu.show" 
+      class="fixed inset-0 z-[9998] bg-black/10" 
+      @click="closeRssContextMenu"
+      @contextmenu.prevent="closeRssContextMenu"
+    ></div>
+
+    <!-- Edit RSS Dialog (Shared with Settings) -->
+    <Dialog :open="isEditRssModalOpen" @update:open="isEditRssModalOpen = $event">
+      <DialogContent class="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>编辑订阅源</DialogTitle>
+          <DialogDescription>
+            配置您的 RSS 订阅详细信息并验证。
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-6 py-4">
+          <div class="space-y-2">
+            <Label>订阅源名称</Label>
+            <Input v-model="editRssForm.name" placeholder="例如：BBC News" />
+          </div>
+          <div class="space-y-2">
+            <Label>订阅链接 (URL)</Label>
+            <Input v-model="editRssForm.url" placeholder="https://example.com/rss.xml" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <Label>分类</Label>
+              <Select v-model="editRssForm.category">
+                <SelectTrigger>
+                  <SelectValue placeholder="选择分类" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="cat in rssCategories" :key="cat.id" :value="cat.id">
+                    <div class="flex items-center gap-2">
+                      <component :is="cat.icon" class="h-4 w-4" />
+                      {{ cat.name }}
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div class="space-y-2">
+              <Label>标识颜色</Label>
+              <div class="flex items-center gap-3">
+                <Input type="color" v-model="editRssForm.color" class="w-12 h-10 p-1 rounded-md overflow-hidden" />
+                <Input v-model="editRssForm.color" class="flex-1 font-mono text-xs" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="isEditRssModalOpen = false">取消</Button>
+          <Button @click="handleSaveRssEdit" class="bg-indigo-600 hover:bg-indigo-700 text-white">
+            保存更改
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'auth'
+})
+
+import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Sun, Moon } from 'lucide-vue-next'
+import { Sun, Moon, Settings, RefreshCw, Tag, Cpu, Coins, Globe, Gamepad2, Activity, Folder } from 'lucide-vue-next'
 import type { NewsItem, TrendingTopic } from '../types/news'
 import { useAiConfig } from '../composables/useAiConfig'
 import { useRssConfig } from '../composables/useRssConfig'
-import { fetchNews, fetchTrendingTopics, mockAiProcess } from '../services/mockNews'
+import { useProxyConfig } from '../composables/useProxyConfig'
 
+import { useAuth, type User } from '../composables/useAuth'
+
+const { user, logout } = useAuth()
 const {
   aiSettings,
-  activeModel
+  activeModel,
+  fetchSettings: fetchAiSettings
 } = useAiConfig()
 
 const {
   enabledRssSources,
   addRssSource,
+  updateRssSource,
+  fetchSources: fetchRssSources,
+  validateRssUrl,
   getSourceById
 } = useRssConfig()
+
+const { proxyUrl, fetchSettings: fetchProxySettings } = useProxyConfig()
+
+const windowHeight = ref(1000) // Default to a reasonable height
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    windowHeight.value = window.innerHeight
+    window.addEventListener('resize', () => {
+      windowHeight.value = window.innerHeight
+    })
+  }
+})
+
+// RSS Context Menu Logic
+const rssContextMenu = reactive({
+  show: false,
+  x: 0,
+  y: 0,
+  source: null as any
+})
+
+const handleRssContextMenu = (e: MouseEvent, source: any) => {
+  // 记录点击位置
+  const x = e.clientX
+  const y = e.clientY
+  
+  toast.info(`触发菜单: ${source.name} (坐标: ${x}, ${y})`) 
+  
+  rssContextMenu.x = x
+  rssContextMenu.y = y
+  rssContextMenu.source = source
+  rssContextMenu.show = true
+}
+
+const closeRssContextMenu = () => {
+  rssContextMenu.show = false
+}
+
+const updateRssSourceFromMenu = async () => {
+  if (!rssContextMenu.source) return
+  const source = rssContextMenu.source
+  closeRssContextMenu()
+  
+  const loadingToast = toast.loading(`正在更新 ${source.name}...`)
+  try {
+    await refreshNews()
+    toast.success(`${source.name} 已更新`, { id: loadingToast })
+  } catch (e) {
+    toast.error('更新失败', { id: loadingToast })
+  }
+}
+
+const isEditRssModalOpen = ref(false)
+const editRssForm = reactive({
+  id: '',
+  name: '',
+  url: '',
+  category: 'general',
+  color: '#6366f1',
+  icon: 'rss'
+})
+
+const rssCategories = [
+  { id: 'general', name: '常规', icon: Tag },
+  { id: 'tech', name: '技术', icon: Cpu },
+  { id: 'finance', name: '金融', icon: Coins },
+  { id: 'international', name: '国际', icon: Globe },
+  { id: 'entertainment', name: '娱乐', icon: Gamepad2 },
+  { id: 'health', name: '健康', icon: Activity }
+]
+
+const manageRssSourceFromMenu = () => {
+  if (!rssContextMenu.source) return
+  const source = rssContextMenu.source
+  closeRssContextMenu()
+  
+  // Populate edit form
+  editRssForm.id = source.id
+  editRssForm.name = source.name
+  editRssForm.url = source.url
+  editRssForm.category = source.category || 'general'
+  editRssForm.color = source.color || '#6366f1'
+  editRssForm.icon = source.icon || 'rss'
+  
+  isEditRssModalOpen.value = true
+}
+
+const handleSaveRssEdit = async () => {
+  if (!editRssForm.url || !editRssForm.name) {
+    toast.error('请填写必要信息')
+    return
+  }
+
+  const loadingToast = toast.loading('正在验证并保存...')
+  try {
+    // 验证订阅源
+    const validation = await validateRssUrl(editRssForm.url)
+    if (!validation.valid) {
+      toast.error(`订阅源验证失败: ${validation.message}`, { id: loadingToast })
+      return
+    }
+
+    await updateRssSource(editRssForm.id, { ...editRssForm })
+    toast.success('订阅源已更新', { id: loadingToast })
+    isEditRssModalOpen.value = false
+    await fetchRssSources() // Refresh list
+  } catch (e) {
+    toast.error('保存失败', { id: loadingToast })
+  }
+}
+
+const copyRssUrlFromMenu = () => {
+  if (!rssContextMenu.source) return
+  const url = rssContextMenu.source.url
+  closeRssContextMenu()
+  
+  navigator.clipboard.writeText(url)
+  toast.success('链接已复制到剪贴板')
+}
+
+// Replace mock services with real API calls
+const fetchNewsData = async (sourceId = 'all', category = 'all') => {
+  return await $fetch<NewsItem[]>('/api/news', {
+    params: { sourceId, category }
+  })
+}
+
+const fetchTrendingTopicsData = async () => {
+  return await $fetch<TrendingTopic[]>('/api/news/trending')
+}
+
+const processAiSummary = async (newsId: number, summaryLength: number, modelName: string) => {
+  return await $fetch<any>('/api/ai/process', {
+    method: 'POST',
+    body: { newsId, summaryLength, modelName }
+  })
+}
 
 useHead({
   title: '智能新闻聚合',
@@ -468,6 +856,78 @@ const currentSource = ref<string>('all')
 const currentCategory = ref<string>('all')
 const currentAiFilter = ref<'all' | 'ai-highlight' | 'ai-summary'>('all')
 
+const isUserMenuOpen = ref(false)
+const isEditProfileModalOpen = ref(false)
+const editUserData = ref({
+  displayName: '',
+  email: '',
+  avatarUrl: ''
+})
+
+const updateUserProfile = async () => {
+  try {
+    const data = await $fetch<User>('/api/user/profile', {
+      method: 'POST',
+      body: editUserData.value
+    })
+    // Update local state
+    user.value = data
+    toast.success('个人信息更新成功')
+    isEditProfileModalOpen.value = false
+  } catch (error) {
+    console.error('Failed to update user profile:', error)
+    toast.error('个人信息更新失败')
+  }
+}
+
+const handleAvatarUpload = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+
+  const file = input.files[0]
+  if (!file) return
+
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('文件大小不能超过 5MB')
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('avatar', file)
+
+  const loadingToast = toast.loading('正在上传头像...')
+  try {
+    const response = await $fetch<{ avatarUrl: string }>('/api/user/upload-avatar', {
+      method: 'POST',
+      body: formData
+    })
+    editUserData.value.avatarUrl = response.avatarUrl
+    toast.success('头像上传成功', { id: loadingToast })
+  } catch (error: any) {
+    console.error('Failed to upload avatar:', error)
+    toast.error(error.data?.statusMessage || '头像上传失败', { id: loadingToast })
+  }
+}
+
+const toggleUserMenu = () => {
+  isUserMenuOpen.value = !isUserMenuOpen.value
+}
+
+const closeUserMenu = () => {
+  isUserMenuOpen.value = false
+}
+
+const openEditProfileModal = () => {
+  if (!user.value) return
+  editUserData.value = {
+    displayName: user.value.displayName,
+    email: user.value.email,
+    avatarUrl: user.value.avatarUrl || ''
+  }
+  isEditProfileModalOpen.value = true
+  closeUserMenu()
+}
+
 const isLoading = ref(false)
 const displayedNews = ref<NewsItem[]>([])
 
@@ -480,13 +940,8 @@ const customRssUrl = ref('')
 const isDarkMode = ref(false)
 const toggleTheme = () => {
   isDarkMode.value = !isDarkMode.value
-  if (isDarkMode.value) {
-    document.documentElement.classList.add('dark')
-    localStorage.setItem('theme', 'dark')
-  } else {
-    document.documentElement.classList.remove('dark')
-    localStorage.setItem('theme', 'light')
-  }
+  document.documentElement.classList.toggle('dark', isDarkMode.value)
+  localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light')
 }
 
 const categoryTabs = [
@@ -545,14 +1000,15 @@ async function loadInitialData() {
   isLoading.value = true
   try {
     const [news, topics] = await Promise.all([
-      fetchNews(proxyUrl.value),
-      fetchTrendingTopics()
+      fetchNewsData(currentSource.value, currentCategory.value),
+      fetchTrendingTopicsData()
     ])
     newsData.value = news
     trendingTopics.value = topics
     displayedNews.value = filteredNews.value
   } catch (error) {
     console.error('Failed to load news:', error)
+    toast.error('获取新闻数据失败，请检查网络或数据库连接')
   } finally {
     isLoading.value = false
   }
@@ -587,7 +1043,7 @@ function onModalBackdropClick(e: MouseEvent) {
   if (e.target === e.currentTarget) closeModal()
 }
 
-function selectPresetSource(source: string) {
+async function selectPresetSource(source: string) {
   if (source === 'custom') {
     showCustomRssInput.value = true
     return
@@ -596,32 +1052,32 @@ function selectPresetSource(source: string) {
   const sourceName =
     source === 'bbc' ? 'BBC新闻' : source === 'reuters' ? '路透社' : source === 'techcrunch' ? 'TechCrunch' : '纽约时报'
   
-  addRssSource(`http://preset-source/${source}`, sourceName)
+  await addRssSource({ url: `http://preset-source/${source}`, name: sourceName })
   toast.success(`已添加 ${sourceName} RSS源`)
   closeModal()
 }
 
-function addCustomRss() {
+async function addCustomRss() {
   const url = customRssUrl.value.trim()
   if (!url) {
     toast.error('请输入有效的RSS URL')
     return
   }
 
-  addRssSource(url)
+  await addRssSource({ url })
   toast.success(`已添加自定义RSS源: ${url}`)
   customRssUrl.value = ''
   closeModal()
 }
 
-function addRssByUrl() {
+async function addRssByUrl() {
   const url = rssUrlInput.value.trim()
   if (!url) {
     toast.error('请输入有效的RSS URL')
     return
   }
 
-  addRssSource(url)
+  await addRssSource({ url })
   toast.success(`已添加RSS源: ${url}\nAI将开始分析该源的内容。`)
   rssUrlInput.value = ''
 }
@@ -630,24 +1086,36 @@ async function generateAllSummaries() {
   isLoading.value = true
   
   const modelName = activeModel.value?.name || '默认模型'
-  const processPromises = newsData.value.map(async (n) => {
-    if (n.aiProcessed) return n
-    const updates = await mockAiProcess(n.id, aiSettings.summaryLength, modelName)
-    return { ...n, ...updates }
-  })
+  try {
+    const processPromises = newsData.value.map(async (n) => {
+      if (n.aiProcessed) return n
+      const updates = await processAiSummary(n.id, aiSettings.summaryLength, modelName)
+      return { ...n, ...(updates as any) }
+    })
 
-  newsData.value = await Promise.all(processPromises)
-  await reloadNews()
-  toast.success(`AI摘要生成完成！使用模型: ${modelName}`)
+    newsData.value = await Promise.all(processPromises)
+    await reloadNews()
+    toast.success(`AI摘要生成完成！使用模型: ${modelName}`)
+  } catch (error) {
+    console.error('Failed to generate summaries:', error)
+    toast.error('AI摘要生成失败')
+  } finally {
+    isLoading.value = false
+  }
 }
-
-const { proxyUrl } = useProxyConfig()
 
 async function refreshNews() {
   isLoading.value = true
-  newsData.value = await fetchNews(proxyUrl.value)
-  toast.info('新闻已刷新！从RSS源获取了最新内容。')
-  await reloadNews()
+  try {
+    newsData.value = await fetchNewsData(currentSource.value, currentCategory.value)
+    toast.info('新闻已刷新！从数据库获取了最新内容。')
+    await reloadNews()
+  } catch (error) {
+    console.error('Failed to refresh news:', error)
+    toast.error('刷新新闻失败')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function toggleReadStatus(newsId: number) {
@@ -664,12 +1132,17 @@ async function generateSummaryForNews(newsId: number) {
 
   isLoading.value = true
   const modelName = activeModel.value?.name || '默认模型'
-  const updates = await mockAiProcess(newsId, aiSettings.summaryLength, modelName)
-  
-  Object.assign(target, updates)
-
-  await reloadNews()
-  toast.success(`已使用 ${modelName} 为"${target.title}"生成AI摘要`)
+  try {
+    const updates = await processAiSummary(newsId, aiSettings.summaryLength, modelName)
+    Object.assign(target, updates)
+    await reloadNews()
+    toast.success(`已使用 ${modelName} 为"${target.title}"生成AI摘要`)
+  } catch (error) {
+    console.error('Failed to generate summary:', error)
+    toast.error('AI摘要生成失败')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function shareNews(newsId: number) {
@@ -739,18 +1212,20 @@ function importanceLabel(importance: number) {
   return '中'
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Load configurations first
+  await Promise.all([
+    fetchAiSettings(),
+    fetchProxySettings(),
+    fetchRssSources()
+  ])
+  
   loadInitialData()
   
   // Initialize theme from localStorage
   const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    isDarkMode.value = true
-    document.documentElement.classList.add('dark')
-  } else {
-    isDarkMode.value = false
-    document.documentElement.classList.remove('dark')
-  }
+  isDarkMode.value = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.classList.toggle('dark', isDarkMode.value)
 })
 </script>
 

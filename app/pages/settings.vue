@@ -36,7 +36,7 @@
       </div>
 
       <Tabs v-model="activeTab" class="w-full">
-       <TabsList class="grid w-full grid-cols-2 mb-10 h-auto p-1.5 bg-muted/20 rounded-2xl border border-muted/20">
+       <TabsList class="grid w-full grid-cols-3 mb-10 h-auto p-1.5 bg-muted/20 rounded-2xl border border-muted/20">
           <TabsTrigger 
             v-for="tab in tabs" 
             :key="tab.id" 
@@ -221,6 +221,94 @@
           </Card>
         </TabsContent>
 
+        <TabsContent value="rss" class="space-y-6 animate-in fade-in duration-500">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h2 class="text-2xl font-black tracking-tight flex items-center gap-3">
+                <Rss class="h-7 w-7 text-indigo-500" />
+                RSS 订阅管理
+              </h2>
+            </div>
+            <Button @click="openAddRssModal" class="rounded-xl px-6 font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-all">
+              <Plus class="h-5 w-5 mr-2" />
+              添加新源
+            </Button>
+          </div>
+
+          <div v-if="Object.keys(groupedRssSources).length === 0" class="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-3xl border-2 border-dashed">
+            <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+              <Rss class="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p class="text-muted-foreground font-medium">暂无订阅源，快去添加一个吧</p>
+          </div>
+
+          <div v-for="(sources, categoryId) in groupedRssSources" :key="categoryId" class="space-y-4">
+            <div class="flex items-center gap-2 px-1">
+              <component :is="getCategoryIcon(String(categoryId))" class="h-4 w-4 text-slate-400" />
+              <h3 class="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-xs">
+                {{ getCategoryName(String(categoryId)) }} ({{ (sources as any[]).length }})
+              </h3>
+              <div class="h-[1px] flex-1 bg-slate-100 dark:bg-slate-800 ml-2"></div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div 
+                v-for="source in (sources as any[])" 
+                :key="source.id"
+                class="group relative flex items-center p-4 rounded-xl border-2 transition-all duration-300 hover:shadow-md bg-card"
+                :class="source.enabled 
+                  ? 'border-slate-100 dark:border-slate-800' 
+                  : 'border-slate-50 dark:border-slate-900/50 opacity-60 grayscale-[0.5]'"
+              >
+                <div 
+                  class="w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm shrink-0"
+                  :style="{ backgroundColor: source.color }"
+                >
+                  <component :is="source.icon === 'globe-europe' ? Globe : source.icon === 'newspaper' ? ListOrdered : source.icon === 'microchip' ? Cpu : Rss" class="h-5 w-5" />
+                </div>
+                
+                <div class="ml-4 flex-1 overflow-hidden">
+                  <div class="flex items-center gap-2">
+                    <h4 class="font-bold text-slate-900 dark:text-white truncate">{{ source.name }}</h4>
+                    <span v-if="!source.enabled" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
+                      已禁用
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ source.url }}</p>
+                </div>
+
+                <div class="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    @click="toggleRssSource(source.id)"
+                    class="h-8 w-8 rounded-full"
+                    :title="source.enabled ? '禁用' : '启用'"
+                  >
+                    <component :is="source.enabled ? Eye : EyeOff" class="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    @click="editRssSource(source)"
+                    class="h-8 w-8 rounded-full"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    @click="handleRemoveRss(source.id)"
+                    class="h-8 w-8 rounded-full text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950"
+                  >
+                    <Trash2 class="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
         <TabsContent value="proxy" class="animate-in fade-in duration-500">
           <Card>
             <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-6">
@@ -388,13 +476,78 @@
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <!-- RSS Management Dialog -->
+    <Dialog :open="isRssModalOpen" @update:open="isRssModalOpen = $event">
+      <DialogContent class="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{{ editingRssId ? '配置订阅源' : '添加订阅源' }}</DialogTitle>
+          <DialogDescription>
+            模仿 FreshRSS 风格，配置您的 RSS 订阅详细信息。
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-6 py-4">
+          <div class="space-y-2">
+            <Label>订阅源名称</Label>
+            <Input v-model="rssForm.name" placeholder="例如：BBC News" />
+          </div>
+          <div class="space-y-2">
+            <Label>订阅链接 (URL)</Label>
+            <Input v-model="rssForm.url" placeholder="https://example.com/rss.xml" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <Label>分类</Label>
+              <Select v-model="rssForm.category">
+                <SelectTrigger>
+                  <SelectValue placeholder="选择分类" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="cat in categories" :key="cat.id" :value="cat.id">
+                    <div class="flex items-center gap-2">
+                      <component :is="cat.icon" class="h-4 w-4" />
+                      {{ cat.name }}
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div class="space-y-2">
+              <Label>标识颜色</Label>
+              <div class="flex items-center gap-3">
+                <Input type="color" v-model="rssForm.color" class="w-12 h-10 p-1 rounded-md overflow-hidden" />
+                <Input v-model="rssForm.color" class="flex-1 font-mono text-xs" />
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-dashed">
+            <div class="space-y-0.5">
+              <Label class="text-base">启用此源</Label>
+              <p class="text-xs text-muted-foreground">禁用后将不再抓取此源的新闻</p>
+            </div>
+            <Switch :model-value="rssForm.enabled" @update:model-value="rssForm.enabled = $event" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="isRssModalOpen = false">取消</Button>
+          <Button @click="handleSaveRss" class="bg-indigo-600 hover:bg-indigo-700 text-white">
+            {{ editingRssId ? '更新配置' : '立即订阅' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'auth'
+})
+
 import { toast } from 'vue-sonner'
 import { useAiConfig } from '~/composables/useAiConfig'
 import { useProxyConfig } from '~/composables/useProxyConfig'
+import { useRssConfig } from '~/composables/useRssConfig'
 import type { AiProvider, AiModelConfig } from '~/types/news'
 import { 
   ArrowLeft, 
@@ -419,24 +572,42 @@ import {
   Moon,
   Sparkles,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  Rss,
+  Globe,
+  Palette,
+  Eye,
+  EyeOff,
+  Folder,
+  Gamepad2,
+  Coins,
+  Activity,
+  Tag
 } from 'lucide-vue-next'
 
 const { 
   aiSettings, 
   addModel, 
+  updateModel,
   removeModel, 
   fetchAvailableModels, 
   validateModel,
-  summaryLengthText,
-  sentimentSensitivityText,
-  importanceThresholdText
+  fetchSettings: fetchAiSettings
 } = useAiConfig()
-const { proxySettings, proxyUrl } = useProxyConfig()
+const { proxySettings, proxyUrl, fetchSettings: fetchProxySettings } = useProxyConfig()
+const { 
+  rssSources, 
+  addRssSource, 
+  updateRssSource,
+  removeRssSource,
+  fetchSources: fetchRssSources,
+  validateRssUrl
+} = useRssConfig()
 
 const activeTab = ref('ai')
 const tabs = [
   { id: 'ai', name: 'AI 模型', icon: Brain },
+  { id: 'rss', name: 'RSS 管理', icon: Rss },
   { id: 'proxy', name: '网络代理', icon: Network }
 ]
 
@@ -452,31 +623,49 @@ const getProviderLucideIcon = (provider: AiProvider) => {
   return providers.find(p => p.id === provider)?.icon || Brain
 }
 
+const summaryLengthText = computed(() => {
+  const val = aiSettings.summaryLength
+  if (val <= 3) return '简短'
+  if (val <= 7) return '适中'
+  return '详细'
+})
+
+const sentimentSensitivityText = computed(() => {
+  const val = aiSettings.sentimentSensitivity
+  if (val <= 3) return '低'
+  if (val <= 7) return '中'
+  return '高'
+})
+
+const importanceThresholdText = computed(() => {
+  const val = aiSettings.importanceThreshold
+  if (val <= 3) return '宽松'
+  if (val <= 7) return '严格'
+  return '极高'
+})
+
 // Theme Logic
 const isDarkMode = ref(false)
 const toggleTheme = () => {
   isDarkMode.value = !isDarkMode.value
-  if (isDarkMode.value) {
-    document.documentElement.classList.add('dark')
-    localStorage.setItem('theme', 'dark')
-  } else {
-    document.documentElement.classList.remove('dark')
-    localStorage.setItem('theme', 'light')
-  }
+  document.documentElement.classList.toggle('dark', isDarkMode.value)
+  localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light')
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Theme initialization
   if (import.meta.client) {
     const savedTheme = localStorage.getItem('theme')
-    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      isDarkMode.value = true
-      document.documentElement.classList.add('dark')
-    } else {
-      isDarkMode.value = false
-      document.documentElement.classList.remove('dark')
-    }
-    toast.info('配置页面已加载')
+    isDarkMode.value = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    document.documentElement.classList.toggle('dark', isDarkMode.value)
   }
+
+  // Fetch settings from DB
+  await Promise.all([
+    fetchAiSettings(),
+    fetchProxySettings(),
+    fetchRssSources()
+  ])
 })
 
 // Model Modal Logic
@@ -604,8 +793,124 @@ const saveModel = () => {
   closeModelModal()
 }
 
+// RSS 管理逻辑
+const isRssModalOpen = ref(false)
+const editingRssId = ref<string | null>(null)
+const rssForm = reactive({
+  name: '',
+  url: '',
+  category: 'general',
+  color: '#6366f1',
+  icon: 'rss',
+  enabled: true
+})
+
+const categories = [
+  { id: 'general', name: '常规', icon: Tag },
+  { id: 'tech', name: '技术', icon: Cpu },
+  { id: 'finance', name: '金融', icon: Coins },
+  { id: 'international', name: '国际', icon: Globe },
+  { id: 'entertainment', name: '娱乐', icon: Gamepad2 },
+  { id: 'health', name: '健康', icon: Activity }
+]
+
+const groupedRssSources = computed(() => {
+  const groups: Record<string, any[]> = {}
+  if (!rssSources.value) return groups
+  rssSources.value.forEach(source => {
+    if (source && source.category) {
+      if (!groups[source.category]) {
+        groups[source.category] = []
+      }
+      groups[source.category]?.push(source)
+    }
+  })
+  return groups
+})
+
+const getCategoryName = (id: string) => {
+  return categories.find(c => c.id === id)?.name || id
+}
+
+const getCategoryIcon = (id: string) => {
+  return categories.find(c => c.id === id)?.icon || Folder
+}
+
+const openAddRssModal = () => {
+  editingRssId.value = null
+  Object.assign(rssForm, {
+    name: '',
+    url: '',
+    category: 'general',
+    color: '#6366f1',
+    icon: 'rss',
+    enabled: true
+  })
+  isRssModalOpen.value = true
+}
+
+const editRssSource = (source: any) => {
+  editingRssId.value = source.id
+  Object.assign(rssForm, {
+    ...source
+  })
+  isRssModalOpen.value = true
+}
+
+const handleSaveRss = async () => {
+  if (!rssForm.url || !rssForm.name) {
+    toast.error('请填写必要信息')
+    return
+  }
+
+  const loadingToast = toast.loading(editingRssId.value ? '正在更新...' : '正在验证订阅源...')
+  
+  try {
+    // 验证订阅源
+    const validation = await validateRssUrl(rssForm.url)
+    if (!validation.valid) {
+      toast.error(`订阅源验证失败: ${validation.message}`, { id: loadingToast })
+      return
+    }
+
+    if (editingRssId.value) {
+      await updateRssSource(editingRssId.value, { ...rssForm })
+      toast.success('RSS 源已更新', { id: loadingToast })
+    } else {
+      await addRssSource({ ...rssForm })
+      toast.success('RSS 源已添加', { id: loadingToast })
+    }
+    isRssModalOpen.value = false
+  } catch (error) {
+    toast.error('保存失败', { id: loadingToast })
+  }
+}
+
+const toggleRssSource = async (id: string) => {
+  const source = rssSources.value.find(s => s.id === id)
+  if (source) {
+    try {
+      await updateRssSource(id, { enabled: !source.enabled })
+      toast.success(`${source.name} 已${!source.enabled ? '启用' : '禁用'}`)
+    } catch (e) {
+      toast.error('切换状态失败')
+    }
+  }
+}
+
+const handleRemoveRss = async (id: string) => {
+  try {
+    const source = await removeRssSource(id)
+    if (source) {
+      toast.success(`${source.name} 已移除`)
+    }
+  } catch (e) {
+    toast.error('移除失败')
+  }
+}
+
 useHead({
-  title: '系统设置 - 智能新闻聚合'
+  title: '系统设置'
 })
 </script>
 

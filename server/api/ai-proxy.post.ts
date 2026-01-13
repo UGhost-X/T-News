@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
       // @ts-ignore
       agent: fetchOptions.agent
     })
-
+    
     return {
       status: response.status,
       statusText: response.statusText,
@@ -47,4 +47,3 @@ export default defineEventHandler(async (event) => {
     }
   }
 })
-

@@ -7,72 +7,87 @@ const aiSettings = reactive<AiSettings>({
   sentimentSensitivity: 7,
   importanceThreshold: 6,
   activeModelId: 'default-openai',
-  models: [
-    {
-      id: 'default-openai',
-      name: 'OpenAI GPT-4o',
-      provider: 'openai',
-      modelName: 'gpt-4o',
-      temperature: 0.7,
-      enabled: true,
-      apiKey: ''
-    },
-    {
-      id: 'default-deepseek',
-      name: 'DeepSeek Chat',
-      provider: 'deepseek',
-      modelName: 'deepseek-chat',
-      temperature: 0.7,
-      enabled: true,
-      apiKey: ''
-    },
-    {
-      id: 'default-ollama',
-      name: 'Ollama Llama3',
-      provider: 'ollama',
-      baseUrl: 'http://localhost:11434',
-      modelName: 'llama3',
-      temperature: 0.7,
-      enabled: true
-    }
-  ]
+  models: []
 })
 
-// Load from localStorage on init
-if (import.meta.client) {
-  const saved = localStorage.getItem('ai_settings')
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved)
-      Object.assign(aiSettings, parsed)
-    } catch (e) {
-      console.error('Failed to parse AI settings', e)
-    }
-  }
-}
-
-// Watch for changes and save
-watch(aiSettings, (newVal) => {
-  if (import.meta.client) {
-    localStorage.setItem('ai_settings', JSON.stringify(newVal))
-  }
-}, { deep: true })
+let isInitialized = false
 
 export const useAiConfig = () => {
+  const fetchSettings = async () => {
+    try {
+      const settings = await $fetch<any>('/api/settings/ai')
+      const models = await $fetch<AiModelConfig[]>('/api/settings/models')
+      
+      if (settings) {
+        aiSettings.summaryLength = settings.summaryLength
+        aiSettings.sentimentSensitivity = settings.sentimentSensitivity
+        aiSettings.importanceThreshold = settings.importanceThreshold
+        aiSettings.activeModelId = settings.activeModelId
+      }
+      
+      if (models) {
+        aiSettings.models = models
+      }
+      isInitialized = true
+    } catch (e) {
+      console.error('Failed to fetch AI config from DB', e)
+    }
+  }
+
+  const saveSettings = async () => {
+    if (!isInitialized) return
+    try {
+      await $fetch('/api/settings/ai', {
+        method: 'POST',
+        body: {
+          summaryLength: aiSettings.summaryLength,
+          sentimentSensitivity: aiSettings.sentimentSensitivity,
+          importanceThreshold: aiSettings.importanceThreshold,
+          activeModelId: aiSettings.activeModelId
+        }
+      })
+    } catch (e) {
+      console.error('Failed to save AI settings to DB', e)
+    }
+  }
+
   const activeModel = computed(() => {
     return aiSettings.models.find(m => m.id === aiSettings.activeModelId) || aiSettings.models[0]
   })
 
-  const addModel = (config: Omit<AiModelConfig, 'id'>) => {
+  const addModel = async (config: Omit<AiModelConfig, 'id'>) => {
     const newModel: AiModelConfig = {
       ...config,
       id: `model-${Date.now()}`
     }
     aiSettings.models.push(newModel)
+    try {
+      await $fetch('/api/settings/models', {
+        method: 'POST',
+        body: newModel
+      })
+    } catch (e) {
+      console.error('Failed to save model to DB', e)
+    }
     return newModel
   }
 
-  const removeModel = (id: string) => {
+  const updateModel = async (model: AiModelConfig) => {
+    const index = aiSettings.models.findIndex(m => m.id === model.id)
+    if (index !== -1) {
+      aiSettings.models[index] = model
+      try {
+        await $fetch('/api/settings/models', {
+          method: 'POST',
+          body: model
+        })
+      } catch (e) {
+        console.error('Failed to update model in DB', e)
+      }
+    }
+  }
+
+  const removeModel = async (id: string) => {
     const index = aiSettings.models.findIndex(m => m.id === id)
     if (index !== -1) {
       aiSettings.models.splice(index, 1)
@@ -81,6 +96,15 @@ export const useAiConfig = () => {
         if (firstModel) {
           aiSettings.activeModelId = firstModel.id
         }
+      }
+      try {
+        await $fetch('/api/settings/models', {
+          method: 'DELETE',
+          body: { id }
+        })
+        await saveSettings()
+      } catch (e) {
+        console.error('Failed to delete model from DB', e)
       }
     }
   }
@@ -196,6 +220,16 @@ export const useAiConfig = () => {
     return true
   }
 
+  // Watch for simple settings changes and save
+  watch([
+    () => aiSettings.summaryLength,
+    () => aiSettings.sentimentSensitivity,
+    () => aiSettings.importanceThreshold,
+    () => aiSettings.activeModelId
+  ], () => {
+    saveSettings()
+  })
+
   return {
     aiSettings,
     summaryLengthText,
@@ -204,7 +238,10 @@ export const useAiConfig = () => {
     applyAiSettings,
     activeModel,
     addModel,
+    updateModel,
     removeModel,
+    fetchSettings,
+    saveSettings,
     fetchAvailableModels,
     validateModel
   }
