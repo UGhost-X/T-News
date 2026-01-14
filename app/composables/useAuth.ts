@@ -18,7 +18,8 @@ export const useAuth = () => {
   const fetchUser = async () => {
     loading.value = true
     try {
-      const data = await $fetch<{ user: User | null }>('/api/auth/me')
+      const fetch = useRequestFetch()
+      const data = await fetch<{ user: User | null }>('/api/auth/me')
       user.value = data.user
     } catch (error) {
       user.value = null

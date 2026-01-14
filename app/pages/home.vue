@@ -28,8 +28,8 @@
               <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-indigo-500 text-white shadow-sm">
                 <i class="fas fa-layer-group"></i>
               </div>
-              <span class="text-sm flex-grow">全部聚合</span>
-              <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ newsData.length }}</span>
+              <span class="text-sm flex-grow">全部新闻</span>
+              <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ newsStats.globalTotal }}</span>
             </li>
 
             <li
@@ -52,17 +52,6 @@
         <div class="px-5 mb-6">
           <div class="text-[11px] uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-4 font-bold">AI分类筛选</div>
           <ul class="space-y-1">
-            <li
-              class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-              :class="{ 'bg-blue-50 dark:bg-blue-900/20 border-primary text-primary font-medium': currentAiFilter === 'all', 'text-slate-600 dark:text-slate-400': currentAiFilter !== 'all' }"
-              @click="applyAiFilter('all')"
-            >
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-indigo-500 text-white shadow-sm">
-                <i class="fas fa-globe"></i>
-              </div>
-              <span class="text-sm flex-grow">全部新闻</span>
-              <span class="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ newsData.length }}</span>
-            </li>
             <li
               class="flex items-center p-3 rounded-lg cursor-pointer transition-all border-l-4 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
               :class="{ 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-medium': currentAiFilter === 'ai-highlight', 'text-slate-600 dark:text-slate-400': currentAiFilter !== 'ai-highlight' }"
@@ -88,19 +77,8 @@
           </ul>
         </div>
 
-        <div class="px-5 mb-6">
-          <div class="text-[11px] uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-4 font-bold">AI检测标签</div>
-          <div class="flex flex-wrap gap-2">
-            <span class="text-[10px] px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-medium">科技动态</span>
-            <span class="text-[10px] px-2 py-1 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800 font-medium">财经要闻</span>
-            <span class="text-[10px] px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 font-medium">积极情绪</span>
-            <span class="text-[10px] px-2 py-1 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800 font-medium text-nowrap">高重要性</span>
-            <span class="text-[10px] px-2 py-1 rounded bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700 font-medium">国际新闻</span>
-            <span class="text-[10px] px-2 py-1 rounded bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-800 font-medium">争议话题</span>
-          </div>
-        </div>
       </div>
-
+      
       <div v-if="user" class="px-5 py-5 border-t border-slate-200 dark:border-slate-800 relative bg-white dark:bg-slate-900">
         <div 
           class="flex items-center p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all group"
@@ -122,7 +100,10 @@
             <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ user.displayName || user.username }}</div>
             <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">{{ user.email }}</div>
           </div>
-          <i class="fas fa-chevron-up text-slate-400 group-hover:text-primary transition-colors text-xs ml-2"></i>
+          <div class="ml-2 flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 transition-colors group-hover:border-primary dark:border-slate-700">
+          <!-- 内部 icon 稍微调小一点，居中 -->
+          <i class="fas fa-chevron-up text-[10px] text-slate-400 transition-colors group-hover:text-primary"></i>
+          </div>
         </div>
 
         <!-- Backdrop for closing menu -->
@@ -176,6 +157,15 @@
               系统设置
             </NuxtLink>
 
+            <NuxtLink 
+              to="/tasks" 
+              class="flex items-center w-full p-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              @click="closeUserMenu"
+            >
+              <Clock class="mr-3 h-4 w-4 text-primary" />
+              定时任务
+            </NuxtLink>
+
             <div class="p-2 mt-1 border-t border-slate-100 dark:border-slate-800">
               <div 
                 class="flex items-center bg-slate-50 dark:bg-slate-800/50 p-1 rounded-full border border-slate-200 dark:border-slate-700 cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -210,26 +200,28 @@
       </div>
     </aside>
 
-    <main class="flex-1 p-5 md:p-8 overflow-y-auto max-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <main 
+      ref="mainContentRef"
+      class="flex-1 p-5 md:p-8 overflow-y-auto max-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300"
+      @scroll="handleScroll"
+    >
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
         <div>
           <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{{ pageTitle }}</h1>
-          <p class="text-slate-500 dark:text-slate-400 text-sm mt-1.5 flex items-center">
-            <span class="flex items-center"><i class="far fa-newspaper mr-1.5"></i>{{ `共 ${displayedNews.length} 条新闻` }}</span>
+          <p class="text-slate-500 dark:text-slate-400 text-sm mt-4 ml-2 flex items-center">
+            <span class="flex items-center"><i class="far fa-newspaper mr-1.5"></i>{{ `共 ${newsStats.total} 条新闻` }}</span>
             <span class="mx-3 w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></span>
-            <span class="text-primary font-medium flex items-center">
-              <i class="fas fa-magic mr-1.5"></i>
-              {{ `AI已处理 ${summaryCount} 条 (${aiProcessedPercentage}%)` }}
-            </span>
           </p>
         </div>
         <div class="flex items-center gap-3 mt-4 sm:mt-0 w-full sm:w-auto">
           <button 
-            class="flex-1 sm:flex-none flex items-center justify-center bg-gradient-to-r from-primary to-secondary text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all" 
+            class="flex-1 sm:flex-none flex items-center justify-center bg-gradient-to-r from-primary to-secondary text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-70 disabled:cursor-not-allowed" 
+            :disabled="isGeneratingAll"
             @click="generateAllSummaries()"
           >
-            <i class="fas fa-robot mr-2"></i>
-            生成AI摘要
+            <i v-if="isGeneratingAll" class="fas fa-spinner fa-spin mr-2"></i>
+            <i v-else class="fas fa-robot mr-2"></i>
+            {{ isGeneratingAll ? '正在处理...' : '生成AI摘要' }}
           </button>
           <button 
             class="flex-1 sm:flex-none flex items-center justify-center bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all" 
@@ -241,24 +233,9 @@
         </div>
       </div>
 
-      <!-- Category Tabs -->
-      <div class="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide no-scrollbar">
-        <button
-          v-for="tab in categoryTabs"
-          :key="tab.key"
-          class="px-5 py-2 whitespace-nowrap rounded-full text-sm font-medium transition-all"
-          :class="currentCategory === tab.key 
-            ? 'bg-primary text-white shadow-md shadow-indigo-500/20' 
-            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary'"
-          @click="selectCategory(tab.key)"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-
-      <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 animate-pulse">
+      <div v-if="isLoading && displayedNews.length === 0" class="flex flex-col items-center justify-center py-20 animate-pulse">
         <div class="w-12 h-12 border-4 border-slate-200 dark:border-slate-800 border-t-primary rounded-full animate-spin mb-4"></div>
-        <p class="text-slate-500 dark:text-slate-400 font-medium">AI正在为您准备内容...</p>
+        <p class="text-slate-500 dark:text-slate-400 font-medium">正在为您准备内容...</p>
       </div>
 
       <div v-else class="flex flex-col gap-6">
@@ -320,23 +297,27 @@
           </div>
           
           <div class="mb-5">
-            <h3 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-white mb-3 group-hover:text-primary transition-colors leading-snug">
+            <h3 
+              class="text-xl md:text-2xl font-bold text-slate-900 dark:text-white mb-3 group-hover:text-primary transition-colors leading-snug cursor-pointer"
+              @click="openNewsDetail(news)"
+            >
               {{ news.title }}
             </h3>
-            <p class="text-slate-600 dark:text-slate-400 text-sm md:text-base leading-relaxed line-clamp-3 relative">
-              {{ news.originalContent }}
+            <p 
+              class="text-slate-600 dark:text-slate-400 text-sm md:text-base leading-relaxed line-clamp-3 relative cursor-pointer"
+              @click="openNewsDetail(news)"
+            >
+              {{ stripHtml(news.contentSnippet || news.originalContent) }}
             </p>
             
             <div v-if="news.aiProcessed" class="mt-5 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-l-4 border-primary relative overflow-hidden">
               <div class="absolute top-0 right-0 p-3 opacity-5 dark:opacity-10">
-                <i class="fas fa-robot text-4xl"></i>
+                <i class="fas fa-robot text-3xl text-primary"></i>
               </div>
               <div class="flex items-center text-primary font-bold text-sm mb-2.5">
                 <i class="fas fa-magic mr-2"></i>
                 AI智能摘要
-                <span class="ml-auto text-[10px] bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600">
-                  强度: {{ aiSettings.summaryLength }}
-                </span>
+
               </div>
               <p class="text-slate-700 dark:text-slate-200 text-sm md:text-base leading-relaxed font-medium italic">
                 "{{ news.aiSummary }}"
@@ -354,11 +335,20 @@
                 {{ news.bookmarked ? '已收藏' : '收藏' }}
               </button>
               <button 
-                class="flex items-center text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" 
-                @click="generateSummaryForNews(news.id)"
+                class="flex items-center text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                @click="crawlNews(news.id)"
+                :disabled="crawlProcessingNewsIds.has(news.id)"
               >
-                <i class="fas fa-robot mr-1.5"></i>
-                {{ news.aiProcessed ? '重新摘要' : '生成摘要' }}
+                <i :class="crawlProcessingNewsIds.has(news.id) ? 'fas fa-spinner fa-spin' : 'fas fa-download'" class="mr-1.5"></i>
+                {{ crawlProcessingNewsIds.has(news.id) ? '爬取中...' : '爬取全文' }}
+              </button>
+              <button 
+                class="flex items-center text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                @click="generateSummaryForNews(news.id)"
+                :disabled="processingNewsIds.has(news.id)"
+              >
+                <i :class="processingNewsIds.has(news.id) ? 'fas fa-spinner fa-spin' : 'fas fa-robot'" class="mr-1.5"></i>
+                {{ processingNewsIds.has(news.id) ? 'AI处理中...' : (news.aiProcessed ? '重新摘要' : '生成摘要') }}
               </button>
               <button 
                 class="flex items-center text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" 
@@ -373,6 +363,20 @@
             </div>
           </div>
         </article>
+        <!-- Load More Indicator -->
+        <div v-if="hasMore" class="py-8 flex justify-center">
+          <div v-if="isFetchingMore" class="flex items-center text-slate-500 dark:text-slate-400">
+            <i class="fas fa-spinner fa-spin mr-2"></i>
+            正在加载更多新闻...
+          </div>
+          <div v-else class="text-slate-400 dark:text-slate-500 text-sm italic">
+            继续向下滚动加载更多
+          </div>
+        </div>
+        <div v-else-if="displayedNews.length > 0" class="py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
+          <div class="w-12 h-px bg-slate-200 dark:bg-slate-800 mx-auto mb-4"></div>
+          已经看到最后啦
+        </div>
       </div>
     </main>
 
@@ -406,31 +410,6 @@
         </ul>
       </div>
 
-      <div class="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-700">
-        <div class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center">
-          <i class="fas fa-rss mr-3 text-amber-500"></i>
-          快捷添加
-        </div>
-
-        <div class="flex mb-3">
-          <input 
-            v-model="rssUrlInput" 
-            type="text" 
-            class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-l-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white" 
-            placeholder="输入RSS源URL" 
-          />
-          <button 
-            class="bg-primary text-white px-4 rounded-r-xl hover:bg-indigo-600 transition-colors" 
-            @click="addRssByUrl()"
-          >
-            <i class="fas fa-plus"></i>
-          </button>
-        </div>
-
-        <p class="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed italic">
-          AI将自动分析RSS/Atom内容并为您智能分类和标记
-        </p>
-      </div>
     </aside>
   </div>
 
@@ -560,112 +539,239 @@
         </button>
       </div>
     </div>
-    <!-- RSS Context Menu -->
-    <div 
-      v-if="rssContextMenu.show" 
-      class="fixed z-[9999] bg-white dark:bg-slate-900 rounded-xl shadow-2xl border-2 border-indigo-500 p-1.5 min-w-[180px]"
-      :style="{ 
-        top: `${rssContextMenu.y}px`, 
-        left: `${rssContextMenu.x}px`,
-        display: 'block !important',
-        visibility: 'visible !important',
-        opacity: '1 !important'
-      }"
-      @click.stop
-    >
-      <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
-        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">订阅源操作</div>
-        <div class="text-xs font-bold text-slate-700 dark:text-slate-300 truncate mt-1">{{ rssContextMenu.source?.name }}</div>
-      </div>
-      
-      <button 
-        @click="updateRssSourceFromMenu"
-        class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-      >
-        <RefreshCw class="mr-2.5 h-4 w-4 text-primary" />
-        更新订阅源
-      </button>
 
-      <button 
-        @click="manageRssSourceFromMenu"
-        class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-      >
-        <Settings class="mr-2.5 h-4 w-4 text-primary" />
-        管理订阅源
-      </button>
-
-      <div class="h-[1px] bg-slate-100 dark:bg-slate-800 my-1"></div>
-
-      <button 
-        @click="copyRssUrlFromMenu"
-        class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-      >
-        <i class="far fa-copy mr-3 text-slate-400"></i>
-        复制链接
-      </button>
+  </div>
+  
+  <!-- RSS Context Menu -->
+  <div 
+    v-if="rssContextMenu.show" 
+    class="fixed z-[9999] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl min-w-[180px] p-1 overflow-hidden"
+    :style="{ top: rssContextMenu.y + 'px', left: rssContextMenu.x + 'px' }"
+  >
+    <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
+      <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">订阅源操作</div>
+      <div class="text-xs font-bold text-slate-700 dark:text-slate-300 truncate mt-1">{{ rssContextMenu.source?.name }}</div>
     </div>
+    
+    <button 
+      @click="updateRssSourceFromMenu"
+      class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+    >
+      <RefreshCw class="mr-2.5 h-4 w-4 text-primary" />
+      更新订阅源
+    </button>
 
-    <!-- Backdrop to close context menu -->
-    <div 
-      v-if="rssContextMenu.show" 
-      class="fixed inset-0 z-[9998] bg-black/10" 
-      @click="closeRssContextMenu"
-      @contextmenu.prevent="closeRssContextMenu"
-    ></div>
+    <button 
+      @click="manageRssSourceFromMenu"
+      class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+    >
+      <Settings class="mr-2.5 h-4 w-4 text-primary" />
+      管理订阅源
+    </button>
 
-    <!-- Edit RSS Dialog (Shared with Settings) -->
-    <Dialog :open="isEditRssModalOpen" @update:open="isEditRssModalOpen = $event">
-      <DialogContent class="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>编辑订阅源</DialogTitle>
-          <DialogDescription>
-            配置您的 RSS 订阅详细信息并验证。
-          </DialogDescription>
-        </DialogHeader>
-        <div class="space-y-6 py-4">
+    <div class="h-[1px] bg-slate-100 dark:bg-slate-800 my-1"></div>
+
+    <button 
+      @click="copyRssUrlFromMenu"
+      class="flex items-center w-full p-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+    >
+      <i class="far fa-copy mr-3 text-slate-400"></i>
+      复制链接
+    </button>
+  </div>
+
+  <!-- Backdrop to close context menu -->
+  <div 
+    v-if="rssContextMenu.show" 
+    class="fixed inset-0 z-[9998] bg-black/10" 
+    @click="closeRssContextMenu"
+    @contextmenu.prevent="closeRssContextMenu"
+  ></div>
+  <!-- Edit RSS Dialog (Shared with Settings) -->
+  <Dialog :open="isEditRssModalOpen" @update:open="isEditRssModalOpen = $event">
+    <DialogContent class="sm:max-w-[500px]">
+      <DialogHeader>
+        <DialogTitle>编辑订阅源</DialogTitle>
+        <DialogDescription>
+          配置您的 RSS 订阅详细信息并验证。
+        </DialogDescription>
+      </DialogHeader>
+      <div class="space-y-6 py-4">
+        <div class="space-y-2">
+          <Label>订阅源名称</Label>
+          <Input v-model="editRssForm.name" placeholder="例如：BBC News" />
+        </div>
+        <div class="space-y-2">
+          <Label>订阅链接 (URL)</Label>
+          <Input v-model="editRssForm.url" placeholder="https://example.com/rss.xml" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <Label>订阅源名称</Label>
-            <Input v-model="editRssForm.name" placeholder="例如：BBC News" />
+            <Label>分类</Label>
+            <Select v-model="editRssForm.category">
+              <SelectTrigger>
+                <SelectValue placeholder="选择分类" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="cat in rssCategories" :key="cat.id" :value="cat.id">
+                  <div class="flex items-center gap-2">
+                    <component :is="cat.icon" class="h-4 w-4" />
+                    {{ cat.name }}
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="space-y-2">
-            <Label>订阅链接 (URL)</Label>
-            <Input v-model="editRssForm.url" placeholder="https://example.com/rss.xml" />
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <Label>分类</Label>
-              <Select v-model="editRssForm.category">
-                <SelectTrigger>
-                  <SelectValue placeholder="选择分类" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem v-for="cat in rssCategories" :key="cat.id" :value="cat.id">
-                    <div class="flex items-center gap-2">
-                      <component :is="cat.icon" class="h-4 w-4" />
-                      {{ cat.name }}
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div class="space-y-2">
-              <Label>标识颜色</Label>
-              <div class="flex items-center gap-3">
-                <Input type="color" v-model="editRssForm.color" class="w-12 h-10 p-1 rounded-md overflow-hidden" />
-                <Input v-model="editRssForm.color" class="flex-1 font-mono text-xs" />
-              </div>
+            <Label>标识颜色</Label>
+            <div class="flex items-center gap-3">
+              <Input type="color" v-model="editRssForm.color" class="w-12 h-10 p-1 rounded-md overflow-hidden" />
+              <Input v-model="editRssForm.color" class="flex-1 font-mono text-xs" />
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isEditRssModalOpen = false">取消</Button>
-          <Button @click="handleSaveRssEdit" class="bg-indigo-600 hover:bg-indigo-700 text-white">
-            保存更改
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" @click="isEditRssModalOpen = false">取消</Button>
+        <Button @click="handleSaveRssEdit" class="bg-indigo-600 hover:bg-indigo-700 text-white">
+          保存更改
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+
+  <!-- Back to Top Button -->
+  <transition
+    enter-active-class="transition duration-300 ease-out"
+    enter-from-class="translate-y-10 opacity-0"
+    enter-to-class="translate-y-0 opacity-100"
+    leave-active-class="transition duration-200 ease-in"
+    leave-from-class="translate-y-0 opacity-100"
+    leave-to-class="translate-y-10 opacity-0"
+  >
+    <button
+      v-if="showBackToTop"
+      @click="scrollToTop"
+      class="fixed bottom-8 right-8 z-[60] w-12 h-12 bg-white dark:bg-slate-800 text-primary rounded-full shadow-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white transition-all transform hover:scale-110 active:scale-95 group"
+      title="返回顶部"
+    >
+      <i class="fas fa-chevron-up text-lg group-hover:animate-bounce"></i>
+    </button>
+  </transition>
+
+  <!-- News Detail Dialog -->
+  <Dialog :open="isNewsDetailOpen" @update:open="isNewsDetailOpen = $event">
+    <DialogContent class="sm:max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 border-none shadow-2xl rounded-2xl !grid-cols-none !grid-rows-none">
+      <DialogHeader class="sr-only">
+        <DialogTitle>{{ selectedNews?.title || '新闻详情' }}</DialogTitle>
+        <DialogDescription>
+          {{ selectedNews ? `来自 ${selectedNews.source} 的新闻详情` : '新闻内容加载中' }}
+        </DialogDescription>
+      </DialogHeader>
+      <div v-if="selectedNews" class="flex flex-col h-full min-h-0 flex-1 bg-white dark:bg-slate-900 overflow-hidden">
+        <!-- Header -->
+        <div class="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-800/30">
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm" :style="{ backgroundColor: sourceColor(selectedNews.sourceId) }">
+                {{ selectedNews.source.substring(0, 2) }}
+              </div>
+              <span class="ml-2.5 font-bold text-slate-900 dark:text-white text-sm">{{ selectedNews.source }}</span>
+            </div>
+            <div class="h-4 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1"></div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center">
+              <i class="far fa-clock mr-1.5"></i>
+              {{ selectedNews.time }}
+            </div>
+            <div class="flex gap-2 ml-auto">
+              <span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                {{ categoryLabel(selectedNews.category) }}
+              </span>
+              <span v-if="selectedNews.aiProcessed" class="text-[10px] px-2 py-0.5 rounded-md font-bold" :style="sentimentTagStyle(selectedNews.sentiment)">
+                {{ sentimentLabel(selectedNews.sentiment) }}
+              </span>
+            </div>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white leading-tight">
+            {{ selectedNews.title }}
+          </h2>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 md:p-8 custom-scrollbar break-words">
+          <!-- AI Summary Section -->
+          <div v-if="selectedNews.aiProcessed" class="mb-8 p-6 bg-primary/5 dark:bg-primary/10 rounded-2xl border border-primary/20 relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 opacity-5">
+              <i class="fas fa-robot text-4xl text-primary"></i>
+            </div>
+            <div class="flex items-center text-primary font-bold text-base mb-3">
+              <i class="fas fa-magic mr-2.5"></i>
+              AI 智能摘要
+            </div>
+            <p class="text-slate-800 dark:text-slate-200 text-base md:text-lg leading-relaxed font-medium italic">
+              "{{ selectedNews.aiSummary }}"
+            </p>
+          </div>
+
+          <!-- Original Content Section -->
+          <div class="max-w-none">
+            <div class="flex items-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest mb-4">
+              <i class="fas fa-align-left mr-2"></i>
+              原文内容
+            </div>
+            <div 
+              class="news-content text-slate-700 dark:text-slate-300 text-base md:text-lg leading-relaxed"
+              v-html="selectedNews.originalContent"
+            >
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <button 
+                class="flex items-center px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-primary transition-all text-sm font-bold border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
+                @click="toggleReadStatus(selectedNews.id)"
+              >
+                <i :class="selectedNews.bookmarked ? 'fas fa-bookmark text-primary' : 'far fa-bookmark'" class="mr-2"></i>
+                {{ selectedNews.bookmarked ? '取消收藏' : '加入收藏' }}
+              </button>
+              <button 
+                class="flex items-center px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-primary transition-all text-sm font-bold border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm disabled:opacity-50"
+                @click="crawlNews(selectedNews.id)"
+                :disabled="crawlProcessingNewsIds.has(selectedNews.id)"
+              >
+                <i :class="crawlProcessingNewsIds.has(selectedNews.id) ? 'fas fa-spinner fa-spin' : 'fas fa-download'" class="mr-2"></i>
+                {{ crawlProcessingNewsIds.has(selectedNews.id) ? '爬取中...' : '爬取全文' }}
+              </button>
+              <button 
+                class="flex items-center px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-primary transition-all text-sm font-bold border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
+                @click="shareNews(selectedNews.id)"
+              >
+                <i class="fas fa-share-alt mr-2"></i>
+                分享新闻
+              </button>
+            </div>
+            
+            <a 
+              v-if="selectedNews.url"
+              :href="selectedNews.url" 
+              target="_blank" 
+              class="flex items-center px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 text-sm"
+            >
+              阅读原文
+              <i class="fas fa-external-link-alt ml-2 text-xs"></i>
+            </a>
+            <div v-else class="text-xs text-slate-400 dark:text-slate-500 italic">
+              暂无原文链接
+            </div>
+          </div>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -675,7 +781,7 @@ definePageMeta({
 
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Sun, Moon, Settings, RefreshCw, Tag, Cpu, Coins, Globe, Gamepad2, Activity, Folder } from 'lucide-vue-next'
+import { Sun, Moon, Settings, RefreshCw, Tag, Cpu, Coins, Globe, Gamepad2, Activity, Folder, Clock } from 'lucide-vue-next'
 import type { NewsItem, TrendingTopic } from '../types/news'
 import { useAiConfig } from '../composables/useAiConfig'
 import { useRssConfig } from '../composables/useRssConfig'
@@ -722,10 +828,7 @@ const rssContextMenu = reactive({
 const handleRssContextMenu = (e: MouseEvent, source: any) => {
   // 记录点击位置
   const x = e.clientX
-  const y = e.clientY
-  
-  toast.info(`触发菜单: ${source.name} (坐标: ${x}, ${y})`) 
-  
+  const y = e.clientY  
   rssContextMenu.x = x
   rssContextMenu.y = y
   rssContextMenu.source = source
@@ -741,12 +844,24 @@ const updateRssSourceFromMenu = async () => {
   const source = rssContextMenu.source
   closeRssContextMenu()
   
-  const loadingToast = toast.loading(`正在更新 ${source.name}...`)
+  const loadingToast = toast.loading(`正在从 ${source.name} 抓取最新新闻...`)
   try {
-    await refreshNews()
-    toast.success(`${source.name} 已更新`, { id: loadingToast })
+    const result = await $fetch<{ success: boolean, newItemsCount: number }>('/api/rss/refresh', {
+      method: 'POST',
+      params: { sourceId: source.id }
+    })
+    
+    if (result.success) {
+      toast.success(`${source.name} 更新成功，新增 ${result.newItemsCount} 条新闻`, { id: loadingToast })
+      // 切换到当前更新的源并刷新列表
+      currentSource.value = source.id
+      await refreshNews()
+    } else {
+      throw new Error('Refresh failed')
+    }
   } catch (e) {
-    toast.error('更新失败', { id: loadingToast })
+    console.error('RSS Refresh Error:', e)
+    toast.error('抓取失败，请稍后重试', { id: loadingToast })
   }
 }
 
@@ -818,11 +933,18 @@ const copyRssUrlFromMenu = () => {
   toast.success('链接已复制到剪贴板')
 }
 
-// Replace mock services with real API calls
-const fetchNewsData = async (sourceId = 'all', category = 'all') => {
-  return await $fetch<NewsItem[]>('/api/news', {
-    params: { sourceId, category }
-  })
+const fetchNewsData = async (sourceId?: string, pageNum: number = 1, isAiProcessed?: boolean, isAiHighlight?: boolean) => {
+  const params: any = { page: pageNum, limit: 20 }
+  if (sourceId && sourceId !== 'all') {
+    params.sourceId = sourceId
+  }
+  if (isAiProcessed) {
+    params.aiProcessed = 'true'
+  }
+  if (isAiHighlight) {
+    params.aiHighlight = 'true'
+  }
+  return await $fetch<{ items: NewsItem[], stats: any }>('/api/news', { params })
 }
 
 const fetchTrendingTopicsData = async () => {
@@ -851,10 +973,18 @@ useHead({
 
 const newsData = ref<NewsItem[]>([])
 const trendingTopics = ref<TrendingTopic[]>([])
+const newsStats = ref({
+  total: 0,
+  globalTotal: 0,
+  aiProcessedCount: 0,
+  aiHighlightCount: 0,
+  sourceCounts: {} as Record<string, number>
+})
 
 const currentSource = ref<string>('all')
-const currentCategory = ref<string>('all')
 const currentAiFilter = ref<'all' | 'ai-highlight' | 'ai-summary'>('all')
+const processingNewsIds = ref<Set<number>>(new Set())
+const crawlProcessingNewsIds = ref<Set<number>>(new Set())
 
 const isUserMenuOpen = ref(false)
 const isEditProfileModalOpen = ref(false)
@@ -929,7 +1059,85 @@ const openEditProfileModal = () => {
 }
 
 const isLoading = ref(false)
+const isFetchingMore = ref(false)
+const isGeneratingAll = ref(false)
+const page = ref(1)
+const hasMore = ref(true)
 const displayedNews = ref<NewsItem[]>([])
+
+const selectedNews = ref<NewsItem | null>(null)
+const isNewsDetailOpen = ref(false)
+
+function stripHtml(html: string) {
+  if (!html) return ''
+  return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ')
+}
+
+function openNewsDetail(news: NewsItem) {
+  selectedNews.value = news
+  isNewsDetailOpen.value = true
+}
+
+const mainContentRef = ref<HTMLElement | null>(null)
+
+async function loadMoreNews() {
+  if (isFetchingMore.value || !hasMore.value) return
+  
+  isFetchingMore.value = true
+  try {
+    const nextPage = page.value + 1
+    const response = await fetchNewsData(
+      currentSource.value, 
+      nextPage, 
+      currentAiFilter.value === 'ai-summary',
+      currentAiFilter.value === 'ai-highlight'
+    )
+    const newNews = response.items
+    
+    if (newNews.length < 20) {
+      hasMore.value = false
+    }
+    
+    if (newNews.length > 0) {
+      newsData.value = [...newsData.value, ...newNews]
+      page.value = nextPage
+      displayedNews.value = [...displayedNews.value, ...newNews]
+      // 更新统计数据，以防后台抓取了新内容
+      newsStats.value = response.stats
+      
+      // 自动为新加载的新闻生成摘要
+      autoGenerateSummaries(newNews)
+    }
+  } catch (error) {
+    console.error('Failed to load more news:', error)
+  } finally {
+    isFetchingMore.value = false
+  }
+}
+
+const showBackToTop = ref(false)
+
+function scrollToTop() {
+  const mainContent = document.querySelector('main')
+  if (mainContent) {
+    mainContent.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }
+}
+
+function handleScroll(e: Event) {
+  const target = e.target as HTMLElement
+  
+  // 显示/隐藏返回顶部按钮
+  showBackToTop.value = target.scrollTop > 400
+
+  const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight
+  if (scrollBottom < 100) {
+    loadMoreNews()
+  }
+}
 
 const isModalOpen = ref(false)
 const showCustomRssInput = ref(false)
@@ -944,26 +1152,17 @@ const toggleTheme = () => {
   localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light')
 }
 
-const categoryTabs = [
-  { key: 'all', label: '全部' },
-  { key: 'tech', label: '科技' },
-  { key: 'finance', label: '财经' },
-  { key: 'politics', label: '时政' },
-  { key: 'sports', label: '体育' },
-  { key: 'entertainment', label: '娱乐' }
-]
-
 const pageTitle = computed(() => {
-  if (currentSource.value === 'all') return '全部新闻聚合'
+  if (currentSource.value === 'all') return '全部新闻'
   const sourceName = getSourceById(currentSource.value)?.name ?? '未知源'
-  return `${sourceName} - 新闻聚合`
+  return `${sourceName}`
 })
 
-const highlightCount = computed(() => newsData.value.filter((n) => n.aiHighlight).length)
-const summaryCount = computed(() => newsData.value.filter((n) => n.aiProcessed).length)
+const highlightCount = computed(() => newsStats.value.aiHighlightCount)
+const summaryCount = computed(() => newsStats.value.aiProcessedCount)
 const aiProcessedPercentage = computed(() => {
-  if (newsData.value.length === 0) return 0
-  return Math.round((summaryCount.value / newsData.value.length) * 100)
+  if (newsStats.value.total === 0) return 0
+  return Math.round((summaryCount.value / newsStats.value.total) * 100)
 })
 
 const filteredNews = computed(() => {
@@ -979,33 +1178,60 @@ const filteredNews = computed(() => {
     items = items.filter((n) => n.aiProcessed)
   }
 
-  if (currentCategory.value !== 'all') {
-    items = items.filter((n) => n.category === currentCategory.value)
-  }
-
   items = items.filter((n) => n.importance >= aiSettings.importanceThreshold)
   return items
 })
 
 async function reloadNews() {
   isLoading.value = true
-  displayedNews.value = []
-  // Simulate network delay
-  await new Promise((r) => setTimeout(r, 300))
-  displayedNews.value = filteredNews.value
-  isLoading.value = false
+  page.value = 1
+  hasMore.value = true
+  try {
+    // 重新从 API 获取最新数据
+    const response = await fetchNewsData(
+      currentSource.value, 
+      1,
+      currentAiFilter.value === 'ai-summary',
+      currentAiFilter.value === 'ai-highlight'
+    )
+    newsData.value = response.items
+    newsStats.value = response.stats
+    displayedNews.value = filteredNews.value
+    if (newsData.value.length < 20) {
+      hasMore.value = false
+    }
+    
+    // 自动为初始新闻生成摘要
+    autoGenerateSummaries(response.items)
+  } catch (error) {
+    console.error('Reload news error:', error)
+  } finally {
+    isLoading.value = false
+  }
 }
 
 async function loadInitialData() {
   isLoading.value = true
+  page.value = 1
+  hasMore.value = true
   try {
-    const [news, topics] = await Promise.all([
-      fetchNewsData(currentSource.value, currentCategory.value),
+    const [response, topics] = await Promise.all([
+      fetchNewsData(
+        currentSource.value, 
+        1,
+        currentAiFilter.value === 'ai-summary',
+        currentAiFilter.value === 'ai-highlight'
+      ),
       fetchTrendingTopicsData()
     ])
-    newsData.value = news
+    newsData.value = response.items
+    newsStats.value = response.stats
     trendingTopics.value = topics
     displayedNews.value = filteredNews.value
+    if (newsData.value.length < 20) {
+      hasMore.value = false
+    }
+    autoGenerateSummaries(response.items)
   } catch (error) {
     console.error('Failed to load news:', error)
     toast.error('获取新闻数据失败，请检查网络或数据库连接')
@@ -1016,11 +1242,6 @@ async function loadInitialData() {
 
 function selectSource(sourceId: string) {
   currentSource.value = sourceId
-  reloadNews()
-}
-
-function selectCategory(category: string) {
-  currentCategory.value = category
   reloadNews()
 }
 
@@ -1070,49 +1291,90 @@ async function addCustomRss() {
   closeModal()
 }
 
-async function addRssByUrl() {
-  const url = rssUrlInput.value.trim()
-  if (!url) {
-    toast.error('请输入有效的RSS URL')
+async function generateAllSummaries() {
+  if (isGeneratingAll.value) return
+  
+  const toProcess = displayedNews.value.filter(n => !n.aiProcessed)
+  if (toProcess.length === 0) {
+    toast.info('当前展示的新闻已全部生成过摘要')
     return
   }
 
-  await addRssSource({ url })
-  toast.success(`已添加RSS源: ${url}\nAI将开始分析该源的内容。`)
-  rssUrlInput.value = ''
-}
-
-async function generateAllSummaries() {
-  isLoading.value = true
-  
+  isGeneratingAll.value = true
   const modelName = activeModel.value?.name || '默认模型'
+  const loadingToast = toast.loading(`正在为 ${toProcess.length} 条新闻生成AI摘要...`)
+  
   try {
-    const processPromises = newsData.value.map(async (n) => {
-      if (n.aiProcessed) return n
-      const updates = await processAiSummary(n.id, aiSettings.summaryLength, modelName)
-      return { ...n, ...(updates as any) }
-    })
-
-    newsData.value = await Promise.all(processPromises)
-    await reloadNews()
-    toast.success(`AI摘要生成完成！使用模型: ${modelName}`)
+    // 串行或小批量并行处理，避免并发过高
+    let successCount = 0
+    for (const news of toProcess) {
+      if (processingNewsIds.value.has(news.id)) continue
+      
+      try {
+        processingNewsIds.value.add(news.id)
+        const updates = await processAiSummary(news.id, aiSettings.summaryLength, modelName)
+        // 直接更新本地引用，Vue 会响应式更新 UI
+        Object.assign(news, updates)
+        if (updates.aiProcessed) {
+          newsStats.value.aiProcessedCount++
+        }
+        successCount++
+      } catch (err) {
+        console.error(`Failed to process news ${news.id}:`, err)
+      } finally {
+        processingNewsIds.value.delete(news.id)
+      }
+    }
+    
+    toast.success(`AI摘要处理完成！成功: ${successCount}/${toProcess.length}`, { id: loadingToast })
   } catch (error) {
     console.error('Failed to generate summaries:', error)
-    toast.error('AI摘要生成失败')
+    toast.error('AI摘要生成过程中出现错误', { id: loadingToast })
   } finally {
-    isLoading.value = false
+    isGeneratingAll.value = false
   }
 }
 
 async function refreshNews() {
   isLoading.value = true
+  const sourceName = currentSource.value === 'all' ? '全部' : (enabledRssSources.value.find(s => s.id === currentSource.value)?.name || '当前源')
+  const loadingToast = toast.loading(`正在同步 ${sourceName} 的最新内容...`)
+  
   try {
-    newsData.value = await fetchNewsData(currentSource.value, currentCategory.value)
-    toast.info('新闻已刷新！从数据库获取了最新内容。')
+    // 1. 先尝试从后端刷新 RSS 抓取
+    if (currentSource.value !== 'all') {
+      await $fetch('/api/rss/refresh', {
+        method: 'POST',
+        params: { sourceId: currentSource.value }
+      })
+    } else {
+      // 如果是 "全部"，并行刷新前 5 个启用的订阅源（避免请求过多）
+      const sourcesToRefresh = enabledRssSources.value.slice(0, 5)
+      await Promise.allSettled(sourcesToRefresh.map(s => 
+        $fetch('/api/rss/refresh', {
+          method: 'POST',
+          params: { sourceId: s.id }
+        })
+      ))
+    }
+
+    // 2. 重新从数据库获取数据
+    toast.success('同步成功！', { id: loadingToast })
     await reloadNews()
   } catch (error) {
     console.error('Failed to refresh news:', error)
-    toast.error('刷新新闻失败')
+    toast.error('同步失败，已显示本地缓存', { id: loadingToast })
+    // 降级处理：仅从数据库读取
+    const response = await fetchNewsData(
+      currentSource.value, 
+      1,
+      currentAiFilter.value === 'ai-summary',
+      currentAiFilter.value === 'ai-highlight'
+    )
+    newsData.value = response.items
+    newsStats.value = response.stats
+    // 自动为新加载的新闻生成摘要
+    autoGenerateSummaries(response.items)
   } finally {
     isLoading.value = false
   }
@@ -1128,20 +1390,84 @@ function toggleReadStatus(newsId: number) {
 
 async function generateSummaryForNews(newsId: number) {
   const target = newsData.value.find((n) => n.id === newsId)
-  if (!target) return
+  if (!target || processingNewsIds.value.has(newsId)) return
 
-  isLoading.value = true
+  processingNewsIds.value.add(newsId)
   const modelName = activeModel.value?.name || '默认模型'
   try {
     const updates = await processAiSummary(newsId, aiSettings.summaryLength, modelName)
     Object.assign(target, updates)
-    await reloadNews()
-    toast.success(`已使用 ${modelName} 为"${target.title}"生成AI摘要`)
+    if (updates.aiProcessed) {
+      newsStats.value.aiProcessedCount++
+    }
+    toast.success(`"${target.title}"生成AI摘要成功`)
   } catch (error) {
-    console.error('Failed to generate summary:', error)
     toast.error('AI摘要生成失败')
   } finally {
-    isLoading.value = false
+    processingNewsIds.value.delete(newsId)
+  }
+}
+
+async function crawlNews(newsId: number) {
+  const target = newsData.value.find((n) => n.id === newsId)
+  if (!target || crawlProcessingNewsIds.value.has(newsId)) return
+
+  crawlProcessingNewsIds.value.add(newsId)
+  const loadingToast = toast.loading(`正在爬取 "${target.title}" 的全文内容...`)
+  
+  try {
+    const result = await $fetch<any>('/api/news/crawl', {
+      method: 'POST',
+      body: { id: newsId }
+    })
+
+    if (result.success) {
+      target.originalContent = result.content
+      toast.success('全文爬取成功', { id: loadingToast })
+      
+      // 爬取成功后，如果还没有摘要，自动生成摘要
+      if (!target.aiProcessed) {
+        generateSummaryForNews(newsId)
+      }
+    } else {
+      toast.error(result.error || '爬取失败', { id: loadingToast })
+    }
+  } catch (error: any) {
+    console.error('Manual Crawl Error:', error)
+    toast.error('请求失败，请检查网络', { id: loadingToast })
+  } finally {
+    crawlProcessingNewsIds.value.delete(newsId)
+  }
+}
+
+/**
+ * 自动为一批新闻生成摘要
+ * @param items 需要检查并生成摘要的新闻列表
+ */
+async function autoGenerateSummaries(items: NewsItem[]) {
+  // 只处理未处理过且不在处理中的新闻
+  const toProcess = items.filter(n => !n.aiProcessed && !processingNewsIds.value.has(n.id))
+  if (toProcess.length === 0) return
+
+  const modelName = activeModel.value?.name || '默认模型'
+  
+  // 串行处理，避免对 API 造成太大压力
+  for (const news of toProcess) {
+    // 再次检查，防止在循环过程中状态改变
+    if (processingNewsIds.value.has(news.id) || news.aiProcessed) continue
+    
+    processingNewsIds.value.add(news.id)
+    try {
+      const updates = await processAiSummary(news.id, aiSettings.summaryLength, modelName)
+      Object.assign(news, updates)
+      if (updates.aiProcessed) {
+        newsStats.value.aiProcessedCount++
+      }
+    } catch (err) {
+      console.error(`Auto summary failed for news ${news.id}:`, err)
+    } finally {
+      processingNewsIds.value.delete(news.id)
+    }
   }
 }
 
@@ -1149,7 +1475,8 @@ function shareNews(newsId: number) {
   const target = newsData.value.find((n) => n.id === newsId)
   if (!target) return
 
-  const shareText = `分享新闻: ${target.title}\n${target.aiSummary ?? target.originalContent.substring(0, 100)}...`
+  const contentPreview = stripHtml(target.aiSummary ?? target.contentSnippet ?? target.originalContent).substring(0, 100)
+  const shareText = `分享新闻: ${target.title}\n${contentPreview}...`
 
   if (typeof navigator !== 'undefined' && navigator.share) {
     navigator.share({
@@ -1177,7 +1504,7 @@ function sourceColor(sourceId: string) {
 }
 
 function countBySource(sourceId: string) {
-  return newsData.value.filter((n) => n.sourceId === sourceId).length
+  return newsStats.value.sourceCounts[sourceId] || 0
 }
 
 function categoryLabel(category: string) {
@@ -1237,5 +1564,96 @@ onMounted(async () => {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+/* News Content Styles */
+.news-content {
+  line-height: 1.8;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.news-content p {
+  margin-bottom: 1.5rem;
+}
+
+.news-content pre, .news-content code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.news-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 1rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.news-content video {
+  max-width: 100%;
+  border-radius: 1rem;
+  margin: 1.5rem 0;
+}
+
+.news-content iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 1rem;
+  margin: 1.5rem 0;
+  border: none;
+}
+
+.news-content h1, .news-content h2, .news-content h3 {
+  font-weight: 800;
+  color: inherit;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.news-content h1 { font-size: 1.5rem; }
+.news-content h2 { font-size: 1.25rem; }
+.news-content h3 { font-size: 1.125rem; }
+
+.news-content ul, .news-content ol {
+  margin-bottom: 1.5rem;
+  padding-left: 1.5rem;
+}
+
+.news-content ul { list-style-type: disc; }
+.news-content ol { list-style-type: decimal; }
+
+.news-content li {
+  margin-bottom: 0.5rem;
+}
+
+.news-content blockquote {
+  border-left: 4px solid #6366f1;
+  padding-left: 1rem;
+  font-style: italic;
+  margin: 1.5rem 0;
+  color: #64748b;
+}
+
+.dark .news-content blockquote {
+  color: #94a3b8;
 }
 </style>

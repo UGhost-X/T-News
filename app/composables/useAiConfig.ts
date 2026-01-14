@@ -5,7 +5,7 @@ import type { AiSettings, AiModelConfig, AiProvider } from '../types/news'
 const aiSettings = reactive<AiSettings>({
   summaryLength: 5,
   sentimentSensitivity: 7,
-  importanceThreshold: 6,
+  importanceThreshold: 0,
   activeModelId: 'default-openai',
   models: []
 })

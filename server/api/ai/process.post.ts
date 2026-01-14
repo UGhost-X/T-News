@@ -1,10 +1,11 @@
 import { defineEventHandler, readBody } from 'h3'
 import { query } from '../../utils/db'
+import { generateAiSummary } from '../../utils/ai'
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { newsId, summaryLength, modelName } = body
+    const { newsId, summaryLength } = body
 
     if (!newsId) {
       throw new Error('News ID is required')
@@ -17,13 +18,31 @@ export default defineEventHandler(async (event) => {
     }
     const news = newsRes.rows[0]
 
-    // 2. Simulate AI summary generation
-    const summary = `[${modelName}] 这是一条关于 "${news.title}" 的AI生成的智能摘要。长度设为 ${summaryLength}。该新闻讨论了 ${news.original_content.substring(0, 50)}... 等核心内容。`
-    const sentiment = Math.random() > 0.6 ? 'positive' : Math.random() > 0.3 ? 'neutral' : 'negative'
-    const importance = Math.floor(Math.random() * 5) + 5 // 5-10
-    const aiHighlight = importance > 8
+    // 2. Fetch AI settings and active model
+    const settingsRes = await query('SELECT * FROM tnews.ai_settings LIMIT 1')
+    const settings = settingsRes.rows[0] || { summary_length: 5, active_model_id: 'default-openai' }
+    
+    const modelRes = await query('SELECT * FROM tnews.ai_models WHERE id = $1', [settings.active_model_id])
+    if (modelRes.rows.length === 0) {
+      throw new Error('Active AI model not found or configured')
+    }
+    const model = modelRes.rows[0]
 
-    // 3. Update the database
+    // 3. Generate AI summary
+    const finalSummaryLength = summaryLength || settings.summary_length
+    const aiResult = await generateAiSummary(
+      news.title,
+      news.original_content,
+      {
+        baseUrl: model.base_url,
+        apiKey: model.api_key,
+        modelName: model.model_name,
+        temperature: parseFloat(model.temperature)
+      },
+      finalSummaryLength
+    )
+
+    // 4. Update the database
     await query(`
       UPDATE tnews.news_items
       SET 
@@ -34,20 +53,20 @@ export default defineEventHandler(async (event) => {
         importance = $4,
         updated_at = now()
       WHERE id = $5
-    `, [summary, aiHighlight, sentiment, importance, newsId])
+    `, [aiResult.summary, aiResult.highlight, aiResult.sentiment, aiResult.importance, newsId])
 
-    // 4. Log to ai_summaries table
+    // 5. Log to ai_summaries table
     await query(`
       INSERT INTO tnews.ai_summaries (news_item_id, provider, model_name, summary, status)
       VALUES ($1, $2, $3, $4, 'success')
-    `, [newsId, 'mock-provider', modelName, summary])
+    `, [newsId, model.provider, model.model_name, aiResult.summary])
 
     return {
-      aiSummary: summary,
+      aiSummary: aiResult.summary,
       aiProcessed: true,
-      aiHighlight: aiHighlight,
-      sentiment: sentiment,
-      importance: importance
+      aiHighlight: aiResult.highlight,
+      sentiment: aiResult.sentiment,
+      importance: aiResult.importance
     }
   } catch (err: any) {
     console.error('Error in AI processing:', err)

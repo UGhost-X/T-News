@@ -5,8 +5,6 @@ let minioClient: Minio.Client | null = null
 export const getMinioClient = () => {
   if (minioClient) return minioClient
 
-  const config = useRuntimeConfig()
-  
   minioClient = new Minio.Client({
     endPoint: process.env.MINIO_ENDPOINT || 'localhost',
     port: parseInt(process.env.MINIO_PORT || '9000'),

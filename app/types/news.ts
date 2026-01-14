@@ -14,6 +14,8 @@ export type NewsItem = {
   title: string
   source: string
   sourceId: string
+  url?: string
+  contentSnippet?: string
   originalContent: string
   aiSummary?: string
   time: string

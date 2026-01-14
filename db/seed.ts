@@ -25,7 +25,8 @@ const mockNewsData = [
     aiProcessed: true,
     aiHighlight: true,
     similarSources: ['BBC', 'Reuters'],
-    tags: ['AI突破', '技术发展', '创新']
+    tags: ['AI突破', '技术发展', '创新'],
+    url: 'https://techcrunch.com/openai-new-model'
   },
   {
     id: 2,
@@ -41,7 +42,8 @@ const mockNewsData = [
     aiProcessed: true,
     aiHighlight: true,
     similarSources: ['纽约时报', 'BBC'],
-    tags: ['货币政策', '经济政策', '通货膨胀']
+    tags: ['货币政策', '经济政策', '通货膨胀'],
+    url: 'https://reuters.com/fed-rates-steady'
   },
   {
     id: 3,
@@ -57,7 +59,8 @@ const mockNewsData = [
     aiProcessed: true,
     aiHighlight: true,
     similarSources: ['卫报', '纽约时报'],
-    tags: ['气候变化', '国际协议', '环境保护']
+    tags: ['气候变化', '国际协议', '环境保护'],
+    url: 'https://bbc.com/climate-summit-2050'
   }
 
 ]
@@ -101,14 +104,14 @@ async function seed() {
 
       const res = await client.query(`
         INSERT INTO tnews.news_items (
-          title, source_name, source_key, original_content, ai_summary, 
+          title, source_name, source_key, url, original_content, ai_summary, 
           published_at, category, sentiment, importance, 
           ai_processed, ai_highlight, similar_sources, tags
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id
       `, [
-        news.title, news.source, news.sourceId, news.originalContent, news.aiSummary,
+        news.title, news.source, news.sourceId, news.url, news.originalContent, news.aiSummary,
         news.time, news.category, news.sentiment, news.importance,
         news.aiProcessed, news.aiHighlight, news.similarSources, news.tags
       ])
