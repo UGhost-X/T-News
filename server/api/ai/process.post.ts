@@ -18,13 +18,20 @@ export default defineEventHandler(async (event) => {
     }
     const news = newsRes.rows[0]
 
-    // 2. Fetch AI settings and active model
+    // 2. Fetch AI settings
     const settingsRes = await query('SELECT * FROM tnews.ai_settings LIMIT 1')
-    const settings = settingsRes.rows[0] || { summary_length: 5, active_model_id: 'default-openai' }
+    const settings = settingsRes.rows[0] || { summary_length: 5 }
     
-    const modelRes = await query('SELECT * FROM tnews.ai_models WHERE id = $1', [settings.active_model_id])
+    // Determine which model to use
+    const targetModelId = settings.summary_model_id
+
+    if (!targetModelId) {
+       throw new Error('Summary model not configured. Please go to Settings > AI to select a model.')
+    }
+
+    const modelRes = await query('SELECT * FROM tnews.ai_models WHERE id = $1', [targetModelId])
     if (modelRes.rows.length === 0) {
-      throw new Error('Active AI model not found or configured')
+      throw new Error('Target AI model not found or configured')
     }
     const model = modelRes.rows[0]
 
@@ -37,7 +44,8 @@ export default defineEventHandler(async (event) => {
         baseUrl: model.base_url,
         apiKey: model.api_key,
         modelName: model.model_name,
-        temperature: parseFloat(model.temperature)
+        temperature: parseFloat(model.temperature),
+        provider: model.provider
       },
       finalSummaryLength
     )

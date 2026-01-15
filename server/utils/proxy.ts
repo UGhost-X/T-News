@@ -51,6 +51,20 @@ export async function getProxyUrl() {
   const proxy = await getProxySettings()
   if (!proxy) return null
 
-  const auth = proxy.username && proxy.password ? `${proxy.username}:${proxy.password}@` : ''
-  return `${proxy.protocol}://${auth}${proxy.host}:${proxy.port}`
+  let constructedUrl = ''
+  try {
+    const protocol = proxy.protocol.replace(/[:\/]+$/, '')
+    constructedUrl = `${protocol}://${proxy.host}:${proxy.port}`
+    const url = new URL(constructedUrl)
+    
+    if (proxy.username && proxy.password) {
+      url.username = proxy.username
+      url.password = proxy.password
+    }
+    
+    return url.href
+  } catch (e) {
+    console.error(`[Proxy] Invalid proxy configuration. Constructed URL: "${constructedUrl}"`, e)
+    return null
+  }
 }

@@ -40,11 +40,13 @@ export type AiSettings = {
   summaryLength: number
   sentimentSensitivity: number
   importanceThreshold: number
-  activeModelId: string
+  summaryModelId?: string
+  translationModelId?: string
+  commentModelId?: string
   models: AiModelConfig[]
 }
 
-export type AiProvider = 'openai' | 'deepseek' | 'ollama' | 'anthropic' | 'custom'
+export type AiProvider = 'openai' | 'deepseek' | 'ollama' | 'anthropic' | 'google' | 'custom'
 
 export type AiModelConfig = {
   id: string

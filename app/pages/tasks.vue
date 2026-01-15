@@ -126,7 +126,6 @@
               <SelectContent>
                 <SelectItem value="rss_update">RSS 订阅更新</SelectItem>
                 <SelectItem value="ai_summary">AI 智能摘要生成</SelectItem>
-                <SelectItem value="news_crawl">新闻原文爬取</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -195,7 +194,7 @@ import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { 
   ArrowLeft, Clock, Plus, ListTodo, RefreshCw, Play, 
   MoreVertical, Pencil, Trash2, Eye, EyeOff, AlertCircle,
-  Timer, History, Rss, Brain, Globe, ExternalLink, CalendarX, Info
+  Timer, History, Rss, Brain, ExternalLink, CalendarX, Info
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { CronExpressionParser } from 'cron-parser'
@@ -207,7 +206,7 @@ definePageMeta({
 interface Task {
   id: string
   name: string
-  task_type: 'rss_update' | 'ai_summary' | 'news_crawl'
+  task_type: 'rss_update' | 'ai_summary'
   cron_expression: string
   enabled: boolean
   last_run_at: string | null
@@ -373,7 +372,6 @@ const getTaskTypeIcon = (type: Task['task_type']) => {
   switch (type) {
     case 'rss_update': return Rss
     case 'ai_summary': return Brain
-    case 'news_crawl': return Globe
   }
 }
 
@@ -381,7 +379,6 @@ const getTaskTypeBg = (type: Task['task_type']) => {
   switch (type) {
     case 'rss_update': return 'bg-blue-100 dark:bg-blue-900/30'
     case 'ai_summary': return 'bg-purple-100 dark:bg-purple-900/30'
-    case 'news_crawl': return 'bg-emerald-100 dark:bg-emerald-900/30'
   }
 }
 
@@ -389,7 +386,6 @@ const getTaskTypeColor = (type: Task['task_type']) => {
   switch (type) {
     case 'rss_update': return 'text-blue-600 dark:text-blue-400'
     case 'ai_summary': return 'text-purple-600 dark:text-purple-400'
-    case 'news_crawl': return 'text-emerald-600 dark:text-emerald-400'
   }
 }
 

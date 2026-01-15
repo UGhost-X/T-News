@@ -12,15 +12,32 @@ export default defineEventHandler(async (event) => {
           summary_length = $1,
           sentiment_sensitivity = $2,
           importance_threshold = $3,
-          active_model_id = $4,
+          summary_model_id = $4,
+          translation_model_id = $5,
+          comment_model_id = $6,
           updated_at = now()
-        WHERE id = $5
-      `, [body.summaryLength, body.sentimentSensitivity, body.importanceThreshold, body.activeModelId, check.rows[0].id])
+        WHERE id = $7
+      `, [
+        body.summaryLength, 
+        body.sentimentSensitivity, 
+        body.importanceThreshold, 
+        body.summaryModelId,
+        body.translationModelId,
+        body.commentModelId,
+        check.rows[0].id
+      ])
     } else {
       await query(`
-        INSERT INTO tnews.ai_settings (summary_length, sentiment_sensitivity, importance_threshold, active_model_id)
-        VALUES ($1, $2, $3, $4)
-      `, [body.summaryLength, body.sentimentSensitivity, body.importanceThreshold, body.activeModelId])
+        INSERT INTO tnews.ai_settings (summary_length, sentiment_sensitivity, importance_threshold, summary_model_id, translation_model_id, comment_model_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [
+        body.summaryLength, 
+        body.sentimentSensitivity, 
+        body.importanceThreshold, 
+        body.summaryModelId,
+        body.translationModelId,
+        body.commentModelId
+      ])
     }
 
     return { success: true }

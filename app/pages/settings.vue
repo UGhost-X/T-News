@@ -55,36 +55,84 @@
           </TabsTrigger>
         </TabsList>
         <TabsContent value="ai" class="space-y-6 animate-in fade-in duration-500">
-          <!-- Active Model Selection -->
+          <!-- Functional Model Configuration -->
           <Card>
             <CardHeader>
               <CardTitle class="flex items-center gap-2">
-                <Brain class="h-5 w-5 text-primary" />
-                当前激活模型
+                <Workflow class="h-5 w-5 text-primary" />
+                功能模型配置
               </CardTitle>
-              <CardDescription>选择您希望在系统中默认使用的 AI 模型</CardDescription>
+              <CardDescription>为不同的功能指定特定的 AI 模型</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div 
-                  v-for="model in aiSettings.models" 
-                  :key="model.id"
-                  @click="aiSettings.activeModelId = model.id"
-                  class="p-4 rounded-xl border-2 cursor-pointer transition-all relative group"
-                  :class="aiSettings.activeModelId === model.id 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-muted hover:border-accent bg-card'"
-                >
-                  <div class="flex items-center mb-2">
-                    <div class="w-8 h-8 rounded-lg bg-background flex items-center justify-center mr-3 shadow-sm border">
-                      <component :is="getProviderLucideIcon(model.provider)" class="h-4 w-4 text-primary" />
-                    </div>
-                    <div class="font-bold">{{ model.name }}</div>
-                  </div>
-                  <div class="text-xs text-muted-foreground uppercase">{{ model.provider }} - {{ model.modelName }}</div>
-                  <div v-if="aiSettings.activeModelId === model.id" class="absolute top-3 right-3 text-primary">
-                    <CheckCircle2 class="h-4 w-4" />
-                  </div>
+            <CardContent class="space-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Summary Model -->
+                <div class="space-y-3">
+                  <Label class="flex items-center gap-2">
+                    <FileText class="h-4 w-4 text-muted-foreground" />
+                    摘要生成模型
+                  </Label>
+                  <Select v-model="aiSettings.summaryModelId">
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择模型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem 
+                        v-for="model in aiSettings.models" 
+                        :key="model.id" 
+                        :value="model.id"
+                      >
+                        {{ model.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p class="text-xs text-muted-foreground">用于生成新闻摘要、提取关键词和情感分析</p>
+                </div>
+
+                <!-- Translation Model -->
+                <div class="space-y-3">
+                  <Label class="flex items-center gap-2">
+                    <Languages class="h-4 w-4 text-muted-foreground" />
+                    翻译模型
+                  </Label>
+                  <Select v-model="aiSettings.translationModelId">
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择模型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem 
+                        v-for="model in aiSettings.models" 
+                        :key="model.id" 
+                        :value="model.id"
+                      >
+                        {{ model.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p class="text-xs text-muted-foreground">用于全文翻译和段落对照翻译</p>
+                </div>
+
+                <!-- Comment Model -->
+                <div class="space-y-3">
+                  <Label class="flex items-center gap-2">
+                    <MessageSquare class="h-4 w-4 text-muted-foreground" />
+                    评论模型
+                  </Label>
+                  <Select v-model="aiSettings.commentModelId">
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择模型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem 
+                        v-for="model in aiSettings.models" 
+                        :key="model.id" 
+                        :value="model.id"
+                      >
+                        {{ model.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p class="text-xs text-muted-foreground">用于生成新闻评论和观点分析</p>
                 </div>
               </div>
             </CardContent>
@@ -349,11 +397,22 @@
                 </div>
                 <div class="space-y-2">
                   <Label>用户名 (可选)</Label>
-                  <Input v-model="proxySettings.username" placeholder="用户名" :disabled="!proxySettings.enabled" />
+                  <Input 
+                    v-model="proxySettings.username" 
+                    placeholder="用户名" 
+                    :disabled="!proxySettings.enabled" 
+                    autocomplete="off"
+                  />
                 </div>
                 <div class="space-y-2">
                   <Label>密码 (可选)</Label>
-                  <Input v-model="proxySettings.password" type="password" placeholder="密码" :disabled="!proxySettings.enabled" />
+                  <Input 
+                    v-model="proxySettings.password" 
+                    type="password" 
+                    placeholder="密码" 
+                    :disabled="!proxySettings.enabled" 
+                    autocomplete="new-password"
+                  />
                 </div>
               </div>
 
@@ -405,11 +464,14 @@
 
           <div class="space-y-2">
             <Label>API 基础地址</Label>
-            <Input v-model="modelForm.baseUrl" :placeholder="baseUrlPlaceholder" />
+            <Input v-model="modelForm.baseUrl" :placeholder="baseUrlPlaceholder" autocomplete="off"/>
           </div>
-
+          <div v-if="modelForm.provider !== 'ollama'" class="space-y-2">
+            <Label>API 密钥</Label>
+            <Input v-model="modelForm.apiKey" type="password" placeholder="sk-xxxxxxxxx" autocomplete="off"/>
+          </div>
           <div class="space-y-2">
-            <Label>模型名称 (Model Name)</Label>
+            <Label>模型名称</Label>
             <div class="flex items-center gap-2">
               <div class="relative flex-1">
                 <template v-if="fetchedModels.length > 0">
@@ -448,10 +510,7 @@
             </div>
           </div>
 
-          <div v-if="modelForm.provider !== 'ollama'" class="space-y-2">
-            <Label>API 密钥 (API Key)</Label>
-            <Input v-model="modelForm.apiKey" type="password" placeholder="sk-xxxxxxxxx" />
-          </div>
+
 
           <div class="space-y-4">
             <div class="flex justify-between items-center">
@@ -536,6 +595,28 @@
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <!-- RSS 删除确认对话框 -->
+    <Dialog :open="isDeleteRssConfirmOpen" @update:open="isDeleteRssConfirmOpen = $event">
+      <DialogContent class="sm:max-w-[400px] rounded-2xl p-0 overflow-hidden border-0 shadow-2xl">
+        <div class="bg-red-50 dark:bg-red-900/20 p-6 flex flex-col items-center justify-center text-center">
+          <div class="w-12 h-12 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center mb-4">
+            <Trash2 class="h-6 w-6 text-red-600 dark:text-red-400" />
+          </div>
+          <DialogHeader class="mb-2">
+            <DialogTitle class="text-xl font-black text-red-600 dark:text-red-400">确认删除？</DialogTitle>
+            <DialogDescription class="text-center text-slate-600 dark:text-slate-300">
+              此操作无法撤销，确定要删除该 RSS 订阅源吗？
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+        <DialogFooter class="p-4 bg-white dark:bg-slate-950 flex gap-3 justify-center border-t border-slate-100 dark:border-slate-800">
+          <Button variant="outline" @click="isDeleteRssConfirmOpen = false" class="flex-1 rounded-xl font-bold">取消</Button>
+          <Button @click="confirmRemoveRss" class="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-600/20">
+            确认删除
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -564,6 +645,10 @@ import {
   Loader2, 
   RefreshCw,
   Bolt,
+  Workflow,
+  FileText,
+  Languages,
+  MessageSquare,
   Search,
   Server,
   Feather,
@@ -616,6 +701,7 @@ const providers = [
   { id: 'deepseek' as AiProvider, name: 'DeepSeek', icon: Search },
   { id: 'ollama' as AiProvider, name: 'Ollama', icon: Server },
   { id: 'anthropic' as AiProvider, name: 'Anthropic', icon: Feather },
+  { id: 'google' as AiProvider, name: 'Google', icon: Globe },
   { id: 'custom' as AiProvider, name: 'Custom', icon: Cpu }
 ]
 
@@ -898,14 +984,27 @@ const toggleRssSource = async (id: string) => {
   }
 }
 
-const handleRemoveRss = async (id: string) => {
+const isDeleteRssConfirmOpen = ref(false)
+const deletingRssId = ref<string | null>(null)
+
+const handleRemoveRss = (id: string) => {
+  deletingRssId.value = id
+  isDeleteRssConfirmOpen.value = true
+}
+
+const confirmRemoveRss = async () => {
+  if (!deletingRssId.value) return
+  
   try {
-    const source = await removeRssSource(id)
+    const source = await removeRssSource(deletingRssId.value)
     if (source) {
       toast.success(`${source.name} 已移除`)
     }
   } catch (e) {
     toast.error('移除失败')
+  } finally {
+    isDeleteRssConfirmOpen.value = false
+    deletingRssId.value = null
   }
 }
 

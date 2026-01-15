@@ -19,3 +19,40 @@ export const SUMMARY_PROMPT = `
 新闻标题：{title}
 新闻内容：{content}
 `;
+
+export const TRANSLATION_PROMPT = `
+你是一个专业的翻译专家。请将以下文本翻译成中文。
+
+要求：
+1. 翻译准确、流畅，符合中文表达习惯。
+2. 保留原文的语气和风格。
+3. 如果原文包含专业术语，请准确翻译。
+4. 仅返回翻译后的文本，不要包含任何解释或其他内容。
+
+原文内容：
+{content}
+`;
+
+export const STRUCTURED_TRANSLATION_PROMPT = `
+你是一个专业的翻译专家。我将提供一组文本段落，请将它们逐一翻译成中文。
+
+输入格式是一个 JSON 数组：
+[
+  { "id": 0, "text": "段落1内容..." },
+  { "id": 1, "text": "段落2内容..." }
+]
+
+请返回一个 JSON 对象，包含 "translations" 字段，该字段是一个数组，格式如下：
+{
+  "translations": [
+    { "id": 0, "translation": "段落1的中文翻译" },
+    { "id": 1, "translation": "段落2的中文翻译" }
+  ]
+}
+
+要求：
+1. 必须返回合法的 JSON 格式。
+2. 必须包含所有输入的 ID，且 ID 对应正确。
+3. 翻译准确、流畅。
+4. 不要包含任何 markdown 代码块标记（如 \`\`\`json），直接返回 JSON 字符串。
+`;

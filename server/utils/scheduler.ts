@@ -3,7 +3,7 @@ const require = createRequire(import.meta.url)
 const cron = require('node-cron')
 import type { ScheduledTask } from 'node-cron'
 import { query } from './db'
-import { runRssUpdate, runAiSummary, runNewsCrawl } from './tasks'
+import { runRssUpdate, runAiSummary } from './tasks'
 
 const jobs: Record<string, ScheduledTask> = {}
 
@@ -38,8 +38,6 @@ export async function initScheduler() {
           result = await runRssUpdate()
         } else if (task_type === 'ai_summary') {
           result = await runAiSummary()
-        } else if (task_type === 'news_crawl') {
-          result = await runNewsCrawl()
         }
 
         await query(

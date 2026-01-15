@@ -9,7 +9,9 @@ export default defineEventHandler(async (event) => {
         summaryLength: 5,
         sentimentSensitivity: 7,
         importanceThreshold: 6,
-        activeModelId: 'default-openai'
+        summaryModelId: undefined,
+        translationModelId: undefined,
+        commentModelId: undefined
       }
     }
     const row = res.rows[0]
@@ -17,7 +19,9 @@ export default defineEventHandler(async (event) => {
       summaryLength: row.summary_length,
       sentimentSensitivity: row.sentiment_sensitivity,
       importanceThreshold: row.importance_threshold,
-      activeModelId: row.active_model_id
+      summaryModelId: row.summary_model_id,
+      translationModelId: row.translation_model_id,
+      commentModelId: row.comment_model_id
     }
   } catch (err) {
     console.error('Failed to fetch AI settings:', err)

@@ -1,6 +1,6 @@
 import { defineEventHandler, getRouterParam } from 'h3'
 import { query } from '../../../../utils/db'
-import { runRssUpdate, runAiSummary, runNewsCrawl } from '../../../../utils/tasks'
+import { runRssUpdate, runAiSummary } from '../../../../utils/tasks'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -25,8 +25,6 @@ export default defineEventHandler(async (event) => {
         result = await runRssUpdate()
       } else if (task.task_type === 'ai_summary') {
         result = await runAiSummary()
-      } else if (task.task_type === 'news_crawl') {
-        result = await runNewsCrawl()
       }
 
       await query(

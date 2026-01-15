@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom'
 import { Readability } from '@mozilla/readability'
 import DOMPurify from 'isomorphic-dompurify'
 import * as cheerio from 'cheerio'
-import { chromium } from 'playwright'
+import { chromium, Browser, Page } from 'playwright'
 import { uploadToMinio } from './minio'
 import { getPlaywrightProxy, getProxyUrl } from './proxy'
 import path from 'path'
@@ -22,9 +22,6 @@ interface CrawlResult {
   error?: string
 }
 
-/**
- * 处理 HTML 中的媒体文件，将其上传到 MinIO 并替换链接
- */
 async function processMedia(html: string, baseUrl: string): Promise<string> {
   const $ = cheerio.load(html)
   const mediaElements = $('img, video, source')
@@ -106,257 +103,210 @@ async function processMedia(html: string, baseUrl: string): Promise<string> {
 }
 
 
-/**
- * 核心解析函数：提取正文、处理媒体并上传 MinIO (Playwright 方案)
- */
+
 export async function parseArticle(url: string): Promise<CrawlResult> {
-  let browser;
+  let browser: Browser | undefined;
+  
   try {
-    // 获取代理配置
     const proxy = await getPlaywrightProxy();
     
-    // 1. 启动 Playwright 浏览器
+    // 1. 浏览器启动配置优化 (增加指纹伪装参数)
     browser = await chromium.launch({
       headless: true,
-      proxy: proxy || undefined, // 应用系统代理
+      proxy: proxy || undefined,
       args: [
-        '--no-sandbox', 
+        '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--no-first-run',
-        '--no-zygote'
+        '--disable-blink-features=AutomationControlled', // 隐藏自动化特征
+        '--disable-infobars'
       ]
     });
-    
-    let context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+
+    const context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       viewport: { width: 1920, height: 1080 },
+      deviceScaleFactor: 1,
       extraHTTPHeaders: {
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        'Accept-Language': 'ja,zh-CN;q=0.9,en;q=0.8', // 针对你提到的 NHK，稍微优先日语
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Upgrade-Insecure-Requests': '1'
       }
     });
-    
-    let page = await context.newPage();
 
-    // 快速加载页面
+    const page = await context.newPage();
+
+    // 2. 更加健壮的导航逻辑
+    let navigationError = null;
     try {
-      await page.goto(url, { 
-        waitUntil: 'domcontentloaded',
-        timeout: 30000 
-      });
-    } catch (gotoError: any) {
-      console.error(`[Crawler] Primary navigation failed for ${url}:`, gotoError.message);
-      
-      // 如果是代理连接失败或服务器返回空响应 (可能是代理不稳定或被封锁)
-      const isProxyError = gotoError.message.includes('ERR_PROXY_CONNECTION_FAILED') || 
-                          gotoError.message.includes('ERR_TUNNEL_CONNECTION_FAILED') ||
-                          gotoError.message.includes('ERR_EMPTY_RESPONSE') ||
-                          gotoError.message.includes('ERR_CONNECTION_CLOSED');
+      // 稍微延长超时，部分重媒体网站加载慢
+      console.log(`[Crawler] Navigating to ${url}...`);
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    } catch (e: any) {
+      navigationError = e;
+      console.warn(`[Crawler] Initial load failed: ${e.message}, attempting without proxy...`);
+    }
 
-      if (proxy && isProxyError) {
-        console.warn(`[Crawler] Network error (${gotoError.message}), attempting direct connection for ${url}`);
-        
-        // 关闭旧浏览器并重新启动一个不带代理的
+    // 如果第一次失败且有代理，尝试不使用代理重试
+    if (navigationError && proxy) {
+      try {
+        // 关闭当前浏览器，重新启动一个不带代理的
         await browser.close();
         browser = await chromium.launch({
           headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-infobars'
+          ]
         });
-        
-        context = await browser.newContext({
-          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        const retryContext = await browser.newContext({
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          viewport: { width: 1920, height: 1080 },
           extraHTTPHeaders: {
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+            'Accept-Language': 'ja,zh-CN;q=0.9,en;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Upgrade-Insecure-Requests': '1'
           }
         });
-        page = await context.newPage();
+        const retryPage = await retryContext.newPage();
+        console.log(`[Crawler] Retrying without proxy: ${url}...`);
+        await retryPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
         
-        await page.goto(url, { 
-          waitUntil: 'domcontentloaded', 
-          timeout: 30000 
-        });
-      } else {
-        throw gotoError;
+        return await extractContentFromPage(retryPage, url, browser);
+      } catch (retryError: any) {
+        console.error(`[Crawler] Retry without proxy also failed: ${retryError.message}`);
+        throw retryError;
       }
+    } else if (navigationError) {
+      throw navigationError;
     }
 
-    // 等待主内容出现（NHK 用 JS 加载）
-    await page.waitForTimeout(1500);
-
-    // 一步到位：移除所有干扰 + 获取内容
-    const result = await page.evaluate(() => {
-      // 1. 移除模态框（如果有）
-      document.querySelectorAll('dialog, [role="dialog"]').forEach(el => el.remove());
-      
-      // 2. 移除明确的干扰区块
-      const removeList = [
-        'nav', 'header', 'footer', 'aside',
-        '[class*="recommend"]', '[class*="related"]', 
-        '[class*="latest"]', '[class*="share"]',
-        '[class*="comment"]', '[class*="ad"]',
-        '.nhk-header', '.nhk-footer'
-      ];
-      
-      removeList.forEach(selector => {
-        document.querySelectorAll(selector).forEach(el => {
-          // 只删除不在 article/main 内的元素
-          if (!el.closest('article, main')) {
-            el.remove();
-          }
-        });
-      });
-
-      // 3. 删除包含关键词的标题及其区块
-      document.querySelectorAll('h2, h3').forEach(heading => {
-        const text = heading.textContent || '';
-        if (text.includes('深掘り') || text.includes('新着') || 
-            text.includes('ライブ') || text.includes('天気')) {
-          // 找到父容器并删除
-          const parent = heading.closest('section, div[class]');
-          if (parent && !parent.closest('article, main')) {
-            parent.remove();
-          }
-        }
-      });
-
-      // 4. 查找主内容
-      let contentElement = document.querySelector('article') || 
-                          document.querySelector('main') ||
-                          document.querySelector('[class*="article-body"]') ||
-                          document.querySelector('[class*="content-body"]');
-
-      if (!contentElement) {
-        // 降级：查找包含最多段落的容器
-        let maxP = 0;
-        let bestElement: Element | null = null;
-        
-        document.querySelectorAll('div, section').forEach(el => {
-          const pCount = el.querySelectorAll('p').length;
-          if (pCount > maxP) {
-            maxP = pCount;
-            bestElement = el;
-          }
-        });
-        
-        contentElement = bestElement;
-      }
-
-      if (!contentElement) {
-        return null;
-      }
-
-      // 5. 在内容内部再次清理
-      contentElement.querySelectorAll('[class*="share"], [class*="recommend"], [class*="related"]')
-        .forEach(el => el.remove());
-
-      // 6. 提取标题
-      const h1 = document.querySelector('h1');
-      const title = h1 ? h1.textContent?.trim() : 
-                    document.title.split('|')[0].trim();
-
-      // 7. 提取时间
-      const timeElement = document.querySelector('time, [class*="date"], [class*="time"]');
-      const publishTime = timeElement ? timeElement.textContent?.trim() : undefined;
-
-      return {
-        html: contentElement.innerHTML,
-        text: contentElement.textContent?.trim() || '',
-        title: title,
-        publishTime: publishTime
-      };
-    });
-
-    await browser.close();
-    browser = undefined;
-
-    if (!result || !result.text || result.text.length < 100) {
-      throw new Error('Content extraction failed or content too short');
-    }
-
-    console.log(`[Crawler] Extracted ${result.text.length} chars from ${url}`);
-
-    // Cheerio 后处理
-    const $ = cheerio.load(result.html);
-
-    // 修复图片
-    $('img').each((_, img) => {
-      const $img = $(img);
-      const src = $img.attr('data-src') || $img.attr('data-original') || $img.attr('src');
-      if (src) {
-        $img.attr('src', src);
-        $img.removeAttr('data-src');
-        $img.removeAttr('data-original');
-        $img.removeAttr('loading');
-      }
-    });
-
-    // 删除残留干扰
-    $('[class*="share"], [class*="recommend"], [class*="related"], [class*="comment"]').remove();
-    $('script, style').remove();
-
-    // 删除空元素
-    $('p, div, span').each((_, el) => {
-      const $el = $(el);
-      if ($el.text().trim() === '' && $el.children().length === 0) {
-        $el.remove();
-      }
-    });
-
-    // DOMPurify 清洗
-    const cleanContent = DOMPurify.sanitize($.html(), {
-      ALLOWED_TAGS: [
-        'p', 'br', 'strong', 'em', 'u', 'a', 'img',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'ul', 'ol', 'li', 'blockquote', 'pre', 'code',
-        'figure', 'figcaption', 'div', 'span',
-        'table', 'thead', 'tbody', 'tr', 'th', 'td'
-      ],
-      ALLOWED_ATTR: ['src', 'href', 'alt', 'title', 'width', 'height'],
-      KEEP_CONTENT: true
-    }) as string;
-
-    // 处理媒体文件
-    const finalContent = await processMedia(cleanContent, url);
-
-    // 生成摘要
-    const excerpt = result.text.substring(0, 200).replace(/\s+/g, ' ');
-
-    return {
-      title: result.title,
-      content: finalContent,
-      excerpt: excerpt,
-      publishTime: result.publishTime,
-      textLength: result.text.length,
-      success: true
-    };
-
+    return await extractContentFromPage(page, url, browser);
   } catch (error: any) {
-    console.error(`[Crawler] Failed to parse ${url}:`, error.message);
+    console.error(`[Crawler] Failed: ${url} - ${error.message}`);
     return {
+      title: '',
       content: '',
+      excerpt: '',
       success: false,
       error: error.message
     };
   } finally {
-    if (browser) {
-      await browser.close();
-    }
+    if (browser) await browser.close();
   }
 }
 
-interface ArticleResult {
-  title?: string;
-  content: string;
-  excerpt?: string;
-  publishTime?: string;
-  textLength?: number;
-  success: boolean;
-  error?: string;
+/**
+ * 从已加载的页面中提取内容
+ */
+async function extractContentFromPage(page: Page, url: string, browser: Browser): Promise<CrawlResult> {
+  try {
+    // 3. 【关键】自动滚动以触发懒加载 (解决截断问题)
+    await autoScroll(page);
+
+    // 4. 等待网络空闲 (确保 JS 渲染的内容加载完毕)
+    try {
+      await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {}); 
+    } catch (e) {
+      console.log('[Crawler] Network idle timeout, proceeding anyway...');
+    }
+
+    // 5. 在浏览器上下文中预处理 DOM (移除绝对的垃圾)
+    await page.evaluate(() => {
+      // 移除脚本、样式、弹窗
+      document.querySelectorAll('script, style, noscript, iframe, svg, canvas').forEach(el => el.remove());
+      document.querySelectorAll('dialog, [role="dialog"], [class*="popup"], [class*="modal"]').forEach(el => el.remove());
+      const body = document.body;
+      if (body) {
+        body.querySelectorAll('nav, footer').forEach(el => {
+          if (!el.closest('article') && !el.closest('[role="main"]')) el.remove();
+        });
+      }
+    });
+
+    // 6. 获取完整 HTML 并在 Node 环境解析
+    const fullHtml = await page.content();
+    
+    // 7. 使用 JSDOM + Readability 进行智能提取
+    const dom = new JSDOM(fullHtml, { url });
+    const reader = new Readability(dom.window.document, {
+      charThreshold: 100,
+      nbTopCandidates: 5
+    });
+
+    const article = reader.parse();
+
+    if (!article || !article.content) {
+      throw new Error('Readability failed to identify content');
+    }
+
+    // 8. 后处理 (Cheerio + DOMPurify)
+    const $ = cheerio.load(article.content);
+
+    // 修复图片链接
+    $('img').each((_, img) => {
+      const $img = $(img);
+      const realSrc = $img.attr('data-src') || $img.attr('data-original') || $img.attr('src');
+      if (realSrc) {
+        $img.attr('src', realSrc);
+        $img.removeAttr('loading');
+        $img.removeAttr('srcset');
+      }
+    });
+
+    // 移除空标签
+    $('div, span, p').each((_, el) => {
+      if ($(el).text().trim().length === 0 && $(el).find('img').length === 0) {
+        $(el).remove();
+      }
+    });
+
+    // 安全清洗
+    const finalContent = DOMPurify.sanitize($.html(), {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'img', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
+      ALLOWED_ATTR: ['src', 'href', 'alt', 'title'],
+      KEEP_CONTENT: true
+    }) as string;
+
+    // 处理媒体文件上传到 MinIO
+    const contentWithMinio = await processMedia(finalContent, url);
+    return {
+      title: article.title || '',
+      content: contentWithMinio,
+      excerpt: article.excerpt || article.textContent?.substring(0, 200) || '',
+      publishTime: article.publishedTime || undefined,
+      success: true
+    };
+  } catch (error: any) {
+    throw error;
+  }
 }
+
+/**
+ * 自动滚动页面到底部，以触发懒加载内容
+ */
+async function autoScroll(page: Page) {
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => {
+      let totalHeight = 0;
+      const distance = 300; // 每次滚动距离
+      const timer = setInterval(() => {
+        const scrollHeight = document.body.scrollHeight;
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+
+        // 如果滚动超过页面高度，或者滚动时间超过 10 秒（防止无限滚动页面卡死）
+        if (totalHeight >= scrollHeight || totalHeight > 15000) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 100); // 滚动间隔
+    });
+  });
+}
+
+
 
 
 
@@ -427,75 +377,3 @@ export async function runAiSummary() {
   return results
 }
 
-export async function runNewsCrawl() {
-  console.log('[Crawler] Starting batch job...')
-
-  // 1. 查询待爬取列表 (未爬取过且 URL 有效)
-  const newsRes = await query(
-    `SELECT id, url 
-     FROM tnews.news_items 
-     WHERE crawled_at IS NULL 
-     AND (original_content <> 'CRAWL_FAILED' AND original_content <> 'INVALID_URL' OR original_content IS NULL OR original_content = '')
-     ORDER BY published_at DESC
-     LIMIT 20`
-  )
-  
-  if (newsRes.rows.length === 0) {
-    console.log('[Crawler] No pending news items.')
-    return []
-  }
-
-  const results = []
-
-  // 2. 遍历执行
-  for (const news of newsRes.rows) {
-    // 简单的休眠，礼貌爬虫，防止被封 IP
-    await new Promise(r => setTimeout(r, 1000))
-
-    try {
-      if (!news.url) {
-        // 标记为无效，避免下次再查到
-        await query(
-           `UPDATE tnews.news_items SET original_content = 'INVALID_URL' WHERE id = $1`,
-           [news.id]
-        )
-        continue
-      }
-      
-      console.log(`[Crawler] Processing: ${news.url}`)
-      const result = await parseArticle(news.url)
-
-      if (result.success && result.content) {
-        // 3. 成功：更新数据库
-        await query(
-          `UPDATE tnews.news_items 
-           SET original_content = $1, 
-               crawled_at = now(), 
-               updated_at = now() 
-           WHERE id = $2`,
-          [result.content, news.id]
-        )
-        
-        results.push({ id: news.id, status: 'success', title: result.title })
-      } else {
-        // 4. 失败：记录错误，防止死循环
-        await query(
-          `UPDATE tnews.news_items 
-           SET original_content = 'CRAWL_FAILED', 
-               updated_at = now() 
-           WHERE id = $1`,
-          [news.id]
-        )
-        
-        results.push({ id: news.id, status: 'failed' })
-      }
-
-    } catch (err: any) {
-      console.error(`[Crawler] DB Error for ID ${news.id}:`, err)
-      results.push({ id: news.id, status: 'error', error: err.message })
-    }
-  }
-  
-  console.log(`[Crawler] Batch finished. Processed ${results.length} items.`)
-  return results
-}

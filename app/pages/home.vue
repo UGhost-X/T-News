@@ -334,14 +334,7 @@
                 <i :class="news.bookmarked ? 'fas fa-bookmark text-primary' : 'far fa-bookmark'" class="mr-1.5"></i>
                 {{ news.bookmarked ? '已收藏' : '收藏' }}
               </button>
-              <button 
-                class="flex items-center text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-                @click="crawlNews(news.id)"
-                :disabled="crawlProcessingNewsIds.has(news.id)"
-              >
-                <i :class="crawlProcessingNewsIds.has(news.id) ? 'fas fa-spinner fa-spin' : 'fas fa-download'" class="mr-1.5"></i>
-                {{ crawlProcessingNewsIds.has(news.id) ? '爬取中...' : '爬取全文' }}
-              </button>
+
               <button 
                 class="flex items-center text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                 @click="generateSummaryForNews(news.id)"
@@ -660,118 +653,14 @@
   </transition>
 
   <!-- News Detail Dialog -->
-  <Dialog :open="isNewsDetailOpen" @update:open="isNewsDetailOpen = $event">
-    <DialogContent class="sm:max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 border-none shadow-2xl rounded-2xl !grid-cols-none !grid-rows-none">
-      <DialogHeader class="sr-only">
-        <DialogTitle>{{ selectedNews?.title || '新闻详情' }}</DialogTitle>
-        <DialogDescription>
-          {{ selectedNews ? `来自 ${selectedNews.source} 的新闻详情` : '新闻内容加载中' }}
-        </DialogDescription>
-      </DialogHeader>
-      <div v-if="selectedNews" class="flex flex-col h-full min-h-0 flex-1 bg-white dark:bg-slate-900 overflow-hidden">
-        <!-- Header -->
-        <div class="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-800/30">
-          <div class="flex flex-wrap items-center gap-3 mb-4">
-            <div class="flex items-center">
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm" :style="{ backgroundColor: sourceColor(selectedNews.sourceId) }">
-                {{ selectedNews.source.substring(0, 2) }}
-              </div>
-              <span class="ml-2.5 font-bold text-slate-900 dark:text-white text-sm">{{ selectedNews.source }}</span>
-            </div>
-            <div class="h-4 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1"></div>
-            <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center">
-              <i class="far fa-clock mr-1.5"></i>
-              {{ selectedNews.time }}
-            </div>
-            <div class="flex gap-2 ml-auto">
-              <span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                {{ categoryLabel(selectedNews.category) }}
-              </span>
-              <span v-if="selectedNews.aiProcessed" class="text-[10px] px-2 py-0.5 rounded-md font-bold" :style="sentimentTagStyle(selectedNews.sentiment)">
-                {{ sentimentLabel(selectedNews.sentiment) }}
-              </span>
-            </div>
-          </div>
-          <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white leading-tight">
-            {{ selectedNews.title }}
-          </h2>
-        </div>
-
-        <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 md:p-8 custom-scrollbar break-words">
-          <!-- AI Summary Section -->
-          <div v-if="selectedNews.aiProcessed" class="mb-8 p-6 bg-primary/5 dark:bg-primary/10 rounded-2xl border border-primary/20 relative overflow-hidden">
-            <div class="absolute top-0 right-0 p-4 opacity-5">
-              <i class="fas fa-robot text-4xl text-primary"></i>
-            </div>
-            <div class="flex items-center text-primary font-bold text-base mb-3">
-              <i class="fas fa-magic mr-2.5"></i>
-              AI 智能摘要
-            </div>
-            <p class="text-slate-800 dark:text-slate-200 text-base md:text-lg leading-relaxed font-medium italic">
-              "{{ selectedNews.aiSummary }}"
-            </p>
-          </div>
-
-          <!-- Original Content Section -->
-          <div class="max-w-none">
-            <div class="flex items-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest mb-4">
-              <i class="fas fa-align-left mr-2"></i>
-              原文内容
-            </div>
-            <div 
-              class="news-content text-slate-700 dark:text-slate-300 text-base md:text-lg leading-relaxed"
-              v-html="selectedNews.originalContent"
-            >
-            </div>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-              <button 
-                class="flex items-center px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-primary transition-all text-sm font-bold border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
-                @click="toggleReadStatus(selectedNews.id)"
-              >
-                <i :class="selectedNews.bookmarked ? 'fas fa-bookmark text-primary' : 'far fa-bookmark'" class="mr-2"></i>
-                {{ selectedNews.bookmarked ? '取消收藏' : '加入收藏' }}
-              </button>
-              <button 
-                class="flex items-center px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-primary transition-all text-sm font-bold border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm disabled:opacity-50"
-                @click="crawlNews(selectedNews.id)"
-                :disabled="crawlProcessingNewsIds.has(selectedNews.id)"
-              >
-                <i :class="crawlProcessingNewsIds.has(selectedNews.id) ? 'fas fa-spinner fa-spin' : 'fas fa-download'" class="mr-2"></i>
-                {{ crawlProcessingNewsIds.has(selectedNews.id) ? '爬取中...' : '爬取全文' }}
-              </button>
-              <button 
-                class="flex items-center px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-primary transition-all text-sm font-bold border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
-                @click="shareNews(selectedNews.id)"
-              >
-                <i class="fas fa-share-alt mr-2"></i>
-                分享新闻
-              </button>
-            </div>
-            
-            <a 
-              v-if="selectedNews.url"
-              :href="selectedNews.url" 
-              target="_blank" 
-              class="flex items-center px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 text-sm"
-            >
-              阅读原文
-              <i class="fas fa-external-link-alt ml-2 text-xs"></i>
-            </a>
-            <div v-else class="text-xs text-slate-400 dark:text-slate-500 italic">
-              暂无原文链接
-            </div>
-          </div>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
+  <NewsDetail
+    v-if="selectedNews"
+    :news="selectedNews"
+    v-model:open="isNewsDetailOpen"
+    :key="selectedNews.id"
+    @toggle-read="toggleReadStatus"
+    @share="shareNews"
+  />
 </template>
 
 <script setup lang="ts">
@@ -781,6 +670,7 @@ definePageMeta({
 
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { toast } from 'vue-sonner'
+import NewsDetail from '~/components/NewsDetail.vue'
 import { Sun, Moon, Settings, RefreshCw, Tag, Cpu, Coins, Globe, Gamepad2, Activity, Folder, Clock } from 'lucide-vue-next'
 import type { NewsItem, TrendingTopic } from '../types/news'
 import { useAiConfig } from '../composables/useAiConfig'
@@ -792,7 +682,8 @@ import { useAuth, type User } from '../composables/useAuth'
 const { user, logout } = useAuth()
 const {
   aiSettings,
-  activeModel,
+  summaryModel,
+  translationModel,
   fetchSettings: fetchAiSettings
 } = useAiConfig()
 
@@ -806,6 +697,7 @@ const {
 } = useRssConfig()
 
 const { proxyUrl, fetchSettings: fetchProxySettings } = useProxyConfig()
+
 
 const windowHeight = ref(1000) // Default to a reasonable height
 onMounted(() => {
@@ -984,7 +876,6 @@ const newsStats = ref({
 const currentSource = ref<string>('all')
 const currentAiFilter = ref<'all' | 'ai-highlight' | 'ai-summary'>('all')
 const processingNewsIds = ref<Set<number>>(new Set())
-const crawlProcessingNewsIds = ref<Set<number>>(new Set())
 
 const isUserMenuOpen = ref(false)
 const isEditProfileModalOpen = ref(false)
@@ -1067,6 +958,7 @@ const displayedNews = ref<NewsItem[]>([])
 
 const selectedNews = ref<NewsItem | null>(null)
 const isNewsDetailOpen = ref(false)
+
 
 function stripHtml(html: string) {
   if (!html) return ''
@@ -1301,7 +1193,7 @@ async function generateAllSummaries() {
   }
 
   isGeneratingAll.value = true
-  const modelName = activeModel.value?.name || '默认模型'
+  const modelName = summaryModel.value?.name || '默认模型'
   const loadingToast = toast.loading(`正在为 ${toProcess.length} 条新闻生成AI摘要...`)
   
   try {
@@ -1393,7 +1285,7 @@ async function generateSummaryForNews(newsId: number) {
   if (!target || processingNewsIds.value.has(newsId)) return
 
   processingNewsIds.value.add(newsId)
-  const modelName = activeModel.value?.name || '默认模型'
+  const modelName = summaryModel.value?.name || '默认模型'
   try {
     const updates = await processAiSummary(newsId, aiSettings.summaryLength, modelName)
     Object.assign(target, updates)
@@ -1408,37 +1300,7 @@ async function generateSummaryForNews(newsId: number) {
   }
 }
 
-async function crawlNews(newsId: number) {
-  const target = newsData.value.find((n) => n.id === newsId)
-  if (!target || crawlProcessingNewsIds.value.has(newsId)) return
 
-  crawlProcessingNewsIds.value.add(newsId)
-  const loadingToast = toast.loading(`正在爬取 "${target.title}" 的全文内容...`)
-  
-  try {
-    const result = await $fetch<any>('/api/news/crawl', {
-      method: 'POST',
-      body: { id: newsId }
-    })
-
-    if (result.success) {
-      target.originalContent = result.content
-      toast.success('全文爬取成功', { id: loadingToast })
-      
-      // 爬取成功后，如果还没有摘要，自动生成摘要
-      if (!target.aiProcessed) {
-        generateSummaryForNews(newsId)
-      }
-    } else {
-      toast.error(result.error || '爬取失败', { id: loadingToast })
-    }
-  } catch (error: any) {
-    console.error('Manual Crawl Error:', error)
-    toast.error('请求失败，请检查网络', { id: loadingToast })
-  } finally {
-    crawlProcessingNewsIds.value.delete(newsId)
-  }
-}
 
 /**
  * 自动为一批新闻生成摘要
@@ -1449,7 +1311,7 @@ async function autoGenerateSummaries(items: NewsItem[]) {
   const toProcess = items.filter(n => !n.aiProcessed && !processingNewsIds.value.has(n.id))
   if (toProcess.length === 0) return
 
-  const modelName = activeModel.value?.name || '默认模型'
+  const modelName = summaryModel.value?.name || '默认模型'
   
   // 串行处理，避免对 API 造成太大压力
   for (const news of toProcess) {

@@ -6,7 +6,9 @@ const aiSettings = reactive<AiSettings>({
   summaryLength: 5,
   sentimentSensitivity: 7,
   importanceThreshold: 0,
-  activeModelId: 'default-openai',
+  summaryModelId: undefined,
+  translationModelId: undefined,
+  commentModelId: undefined,
   models: []
 })
 
@@ -18,16 +20,31 @@ export const useAiConfig = () => {
       const settings = await $fetch<any>('/api/settings/ai')
       const models = await $fetch<AiModelConfig[]>('/api/settings/models')
       
+      if (models) {
+        aiSettings.models = models
+      }
+
       if (settings) {
         aiSettings.summaryLength = settings.summaryLength
         aiSettings.sentimentSensitivity = settings.sentimentSensitivity
         aiSettings.importanceThreshold = settings.importanceThreshold
-        aiSettings.activeModelId = settings.activeModelId
+        aiSettings.summaryModelId = settings.summaryModelId
+        aiSettings.translationModelId = settings.translationModelId
+        aiSettings.commentModelId = settings.commentModelId
+        
+        // Fallback: If no specific model is set, try to use the first available model
+        const firstModelId = aiSettings.models[0]?.id
+        if (!aiSettings.summaryModelId && firstModelId) {
+           aiSettings.summaryModelId = firstModelId
+        }
+        if (!aiSettings.translationModelId && firstModelId) {
+           aiSettings.translationModelId = firstModelId
+        }
+        if (!aiSettings.commentModelId && firstModelId) {
+           aiSettings.commentModelId = firstModelId
+        }
       }
       
-      if (models) {
-        aiSettings.models = models
-      }
       isInitialized = true
     } catch (e) {
       console.error('Failed to fetch AI config from DB', e)
@@ -43,7 +60,9 @@ export const useAiConfig = () => {
           summaryLength: aiSettings.summaryLength,
           sentimentSensitivity: aiSettings.sentimentSensitivity,
           importanceThreshold: aiSettings.importanceThreshold,
-          activeModelId: aiSettings.activeModelId
+          summaryModelId: aiSettings.summaryModelId,
+          translationModelId: aiSettings.translationModelId,
+          commentModelId: aiSettings.commentModelId
         }
       })
     } catch (e) {
@@ -51,8 +70,16 @@ export const useAiConfig = () => {
     }
   }
 
-  const activeModel = computed(() => {
-    return aiSettings.models.find(m => m.id === aiSettings.activeModelId) || aiSettings.models[0]
+  const summaryModel = computed(() => {
+    return aiSettings.models.find(m => m.id === aiSettings.summaryModelId) || aiSettings.models[0]
+  })
+
+  const translationModel = computed(() => {
+    return aiSettings.models.find(m => m.id === aiSettings.translationModelId) || aiSettings.models[0]
+  })
+
+  const commentModel = computed(() => {
+    return aiSettings.models.find(m => m.id === aiSettings.commentModelId) || aiSettings.models[0]
   })
 
   const addModel = async (config: Omit<AiModelConfig, 'id'>) => {
@@ -91,12 +118,19 @@ export const useAiConfig = () => {
     const index = aiSettings.models.findIndex(m => m.id === id)
     if (index !== -1) {
       aiSettings.models.splice(index, 1)
-      if (aiSettings.activeModelId === id && aiSettings.models.length > 0) {
-        const firstModel = aiSettings.models[0]
-        if (firstModel) {
-          aiSettings.activeModelId = firstModel.id
-        }
+      
+      const firstModelId = aiSettings.models[0]?.id
+      
+      if (aiSettings.summaryModelId === id) {
+        aiSettings.summaryModelId = firstModelId
       }
+      if (aiSettings.translationModelId === id) {
+        aiSettings.translationModelId = firstModelId
+      }
+      if (aiSettings.commentModelId === id) {
+        aiSettings.commentModelId = firstModelId
+      }
+
       try {
         await $fetch('/api/settings/models', {
           method: 'DELETE',
@@ -116,6 +150,8 @@ export const useAiConfig = () => {
       let url = ''
       if (provider === 'deepseek') {
         url = 'https://api.deepseek.com/models'
+      } else if (provider === 'google') {
+        url = baseUrl ? `${baseUrl.replace(/\/$/, '')}/models` : 'https://generativelanguage.googleapis.com/v1beta/models'
       } else if (provider === 'openai') {
         url = baseUrl ? `${baseUrl.replace(/\/$/, '')}/models` : 'https://api.openai.com/v1/models'
       } else if (provider === 'anthropic') {
@@ -130,7 +166,9 @@ export const useAiConfig = () => {
         'Accept': 'application/json'
       }
 
-      if (provider !== 'ollama' && apiKey) {
+      if (provider === 'google' && apiKey) {
+        headers['x-goog-api-key'] = apiKey
+      } else if (provider !== 'ollama' && apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`
       }
 
@@ -151,6 +189,8 @@ export const useAiConfig = () => {
       const data = response.data
       if (provider === 'ollama') {
         return data.models?.map((m: any) => m.name) || []
+      } else if (provider === 'google') {
+        return data.models?.map((m: any) => m.name.replace(/^models\//, '')) || []
       }
       
       return data.data?.map((m: any) => m.id) || []
@@ -161,21 +201,35 @@ export const useAiConfig = () => {
   }
 
   const validateModel = async (config: AiModelConfig, proxyUrl?: string) => {
-    const baseUrl = config.baseUrl || (config.provider === 'deepseek' ? 'https://api.deepseek.com' : '')
+    const baseUrl = config.baseUrl || (config.provider === 'deepseek' ? 'https://api.deepseek.com' : (config.provider === 'google' ? 'https://generativelanguage.googleapis.com/v1beta' : ''))
     if (!baseUrl && config.provider !== 'ollama') return { success: false, message: '缺少 Base URL' }
     
     try {
-      const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`
-      const payload = {
-        model: config.modelName,
-        messages: [{ role: 'user', content: 'hi' }],
-        max_tokens: 5
-      }
-
+      let url = ''
+      let payload = {}
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       }
-      if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`
+
+      if (config.provider === 'google') {
+        const modelName = config.modelName || 'gemini-pro'
+        const model = modelName.startsWith('models/') ? modelName.replace('models/', '') : modelName
+        url = `${baseUrl.replace(/\/+$/, '')}/models/${model}:generateContent`
+        if (config.apiKey) headers['x-goog-api-key'] = config.apiKey
+        
+        payload = {
+          contents: [{ parts: [{ text: "hi" }] }]
+        }
+      } else {
+        url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`
+        if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`
+        
+        payload = {
+          model: config.modelName,
+          messages: [{ role: 'user', content: 'hi' }],
+          max_tokens: 5
+        }
+      }
 
       const response = await $fetch<any>('/api/ai-proxy', {
         method: 'POST',
@@ -225,7 +279,9 @@ export const useAiConfig = () => {
     () => aiSettings.summaryLength,
     () => aiSettings.sentimentSensitivity,
     () => aiSettings.importanceThreshold,
-    () => aiSettings.activeModelId
+    () => aiSettings.summaryModelId,
+    () => aiSettings.translationModelId,
+    () => aiSettings.commentModelId
   ], () => {
     saveSettings()
   })
@@ -236,7 +292,9 @@ export const useAiConfig = () => {
     sentimentSensitivityText,
     importanceThresholdText,
     applyAiSettings,
-    activeModel,
+    summaryModel,
+    translationModel,
+    commentModel,
     addModel,
     updateModel,
     removeModel,
