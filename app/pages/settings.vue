@@ -562,7 +562,7 @@
                   <SelectValue placeholder="选择分类" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem v-for="cat in categories" :key="cat.id" :value="cat.id">
+                  <SelectItem v-for="cat in rssCategories" :key="cat.id" :value="cat.id">
                     <div class="flex items-center gap-2">
                       <component :is="cat.icon" class="h-4 w-4" />
                       {{ cat.name }}
@@ -630,6 +630,7 @@ import { useAiConfig } from '~/composables/useAiConfig'
 import { useProxyConfig } from '~/composables/useProxyConfig'
 import { useRssConfig } from '~/composables/useRssConfig'
 import type { AiProvider, AiModelConfig } from '~/types/news'
+import { rssCategories } from '~/config/categories'
 import { 
   ArrowLeft, 
   Settings, 
@@ -667,7 +668,24 @@ import {
   Gamepad2,
   Coins,
   Activity,
-  Tag
+  Tag,
+  MessageCircle, 
+  Smartphone, 
+  Newspaper, 
+  MessagesSquare, 
+  PenTool, 
+  Laptop, 
+  Video, 
+  Speaker, 
+  Image, 
+  GraduationCap, 
+  AlertTriangle, 
+  Plane, 
+  ShoppingBag, 
+  BookOpen, 
+  Megaphone, 
+  Book, 
+  Microscope
 } from 'lucide-vue-next'
 
 const { 
@@ -857,7 +875,7 @@ const validateAndSave = async () => {
   try {
     const result = await validateModel({ ...modelForm, id: editingModel.value || '' }, proxyUrl.value)
     if (result.success) {
-      saveModel()
+      await saveModel()
       toast.success('验证成功，配置已保存')
     } else {
       toast.error(`验证失败: ${result.message}`)
@@ -867,14 +885,12 @@ const validateAndSave = async () => {
   }
 }
 
-const saveModel = () => {
+const saveModel = async () => {
   if (editingModel.value) {
-    const index = aiSettings.models.findIndex(m => m.id === editingModel.value)
-    if (index !== -1) {
-      aiSettings.models[index] = { ...modelForm, id: editingModel.value } as AiModelConfig
-    }
+    const modelToUpdate = { ...modelForm, id: editingModel.value } as AiModelConfig
+    await updateModel(modelToUpdate)
   } else {
-    addModel({ ...modelForm })
+    await addModel({ ...modelForm })
   }
   closeModelModal()
 }
@@ -891,15 +907,6 @@ const rssForm = reactive({
   enabled: true
 })
 
-const categories = [
-  { id: 'general', name: '常规', icon: Tag },
-  { id: 'tech', name: '技术', icon: Cpu },
-  { id: 'finance', name: '金融', icon: Coins },
-  { id: 'international', name: '国际', icon: Globe },
-  { id: 'entertainment', name: '娱乐', icon: Gamepad2 },
-  { id: 'health', name: '健康', icon: Activity }
-]
-
 const groupedRssSources = computed(() => {
   const groups: Record<string, any[]> = {}
   if (!rssSources.value) return groups
@@ -915,11 +922,11 @@ const groupedRssSources = computed(() => {
 })
 
 const getCategoryName = (id: string) => {
-  return categories.find(c => c.id === id)?.name || id
+  return rssCategories.find(c => c.id === id)?.name || id
 }
 
 const getCategoryIcon = (id: string) => {
-  return categories.find(c => c.id === id)?.icon || Folder
+  return rssCategories.find(c => c.id === id)?.icon || Folder
 }
 
 const openAddRssModal = () => {

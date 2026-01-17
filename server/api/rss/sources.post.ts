@@ -36,6 +36,15 @@ export default defineEventHandler(async (event) => {
          WHERE source_key = $7 AND (owner_user_id = $8 OR owner_user_id IS NULL)`,
         [name, url, category, color, icon, enabled, id, user.id]
       )
+
+      // Sync category update to historical news items
+      await query(
+        `UPDATE tnews.news_items
+         SET category = $1
+         WHERE source_key = $2`,
+        [category, id]
+      )
+
       return { success: true, action: 'updated' }
     } else {
       // Insert

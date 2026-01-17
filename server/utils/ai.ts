@@ -8,6 +8,7 @@ export interface AiResponse {
   sentiment: 'positive' | 'neutral' | 'negative'
   importance: number
   highlight: boolean
+  category: string
 }
 
 export interface TranslationSegment {
@@ -175,7 +176,8 @@ export async function generateAiSummary(
       summary: parsed.summary || '',
       sentiment: parsed.sentiment || 'neutral',
       importance: parsed.importance || 5,
-      highlight: !!parsed.highlight
+      highlight: !!parsed.highlight,
+      category: parsed.category || 'other'
     }
   } catch (e) {
     console.error('Failed to parse AI response:', resultText)

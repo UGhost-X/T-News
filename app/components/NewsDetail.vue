@@ -26,6 +26,9 @@
               <span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                 {{ categoryLabel(news.category) }}
               </span>
+              <span v-if="news.aiCategory" class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                {{ aiCategoryLabel(news.aiCategory) }}
+              </span>
               <span v-if="news.aiProcessed" class="text-[10px] px-2 py-0.5 rounded-md font-bold" :style="sentimentTagStyle(news.sentiment)">
                 {{ sentimentLabel(news.sentiment) }}
               </span>
@@ -210,6 +213,8 @@ import { ref, computed, reactive, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import type { NewsItem } from '../types/news'
 import { useRssConfig } from '../composables/useRssConfig'
+import { rssCategories } from '~/config/categories'
+import { newsCategories } from '~/config/news-categories'
 
 const props = defineProps<{
   news: NewsItem
@@ -248,15 +253,11 @@ function sourceColor(sourceId: string) {
 }
 
 function categoryLabel(category: string) {
-  const labels: Record<string, string> = {
-    tech: '科技',
-    finance: '财经',
-    international: '国际',
-    sports: '体育',
-    entertainment: '娱乐',
-    politics: '时政'
-  }
-  return labels[category] || '其他'
+  return rssCategories.find(c => c.id === category)?.name || '其他'
+}
+
+function aiCategoryLabel(category: string) {
+  return newsCategories.find(c => c.id === category)?.name || ''
 }
 
 function sentimentLabel(sentiment: NewsItem['sentiment']) {

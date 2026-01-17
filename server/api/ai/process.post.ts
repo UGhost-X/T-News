@@ -59,9 +59,10 @@ export default defineEventHandler(async (event) => {
         ai_highlight = $2,
         sentiment = $3,
         importance = $4,
+        ai_category = $5,
         updated_at = now()
-      WHERE id = $5
-    `, [aiResult.summary, aiResult.highlight, aiResult.sentiment, aiResult.importance, newsId])
+      WHERE id = $6
+    `, [aiResult.summary, aiResult.highlight, aiResult.sentiment, aiResult.importance, aiResult.category, newsId])
 
     // 5. Log to ai_summaries table
     await query(`
@@ -74,7 +75,8 @@ export default defineEventHandler(async (event) => {
       aiProcessed: true,
       aiHighlight: aiResult.highlight,
       sentiment: aiResult.sentiment,
-      importance: aiResult.importance
+      importance: aiResult.importance,
+      aiCategory: aiResult.category
     }
   } catch (err: any) {
     console.error('Error in AI processing:', err)

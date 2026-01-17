@@ -19,7 +19,9 @@ export type NewsItem = {
   originalContent: string
   aiSummary?: string
   time: string
+  publishedAt?: string
   category: string
+  aiCategory?: string
   sentiment: 'positive' | 'neutral' | 'negative'
   importance: number
   aiProcessed: boolean
@@ -29,11 +31,8 @@ export type NewsItem = {
   bookmarked?: boolean
 }
 
-export type TrendingTopic = {
-  id: number
-  title: string
+export type TrendingTopic = NewsItem & {
   count: number
-  category: string
 }
 
 export type AiSettings = {
@@ -66,4 +65,13 @@ export type ProxySettings = {
   protocol: 'http' | 'https' | 'socks5'
   username?: string
   password?: string
+}
+
+export type NewsStats = {
+  total: number
+  globalTotal: number
+  aiProcessedCount: number
+  aiHighlightCount: number
+  bookmarkedCount: number
+  sourceCounts: Record<string, number>
 }

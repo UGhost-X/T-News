@@ -81,6 +81,10 @@ export default <Partial<Config>>{
         "collapsible-up": "collapsible-up 0.2s ease-in-out",
         "fade-in": "fade-in 0.3s ease-out",
       },
+      transitionTimingFunction: {
+        'sidebar': 'cubic-bezier(0.25, 0.8, 0.5, 1)',
+        'panel': 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
     },
   },
   plugins: [
