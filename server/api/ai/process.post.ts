@@ -1,6 +1,6 @@
 import { defineEventHandler, readBody } from 'h3'
 import { query } from '../../utils/db'
-import { generateAiSummary } from '../../utils/ai'
+import { generateAiSummary, generateEmbedding } from '../../utils/ai'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -37,9 +37,14 @@ export default defineEventHandler(async (event) => {
 
     // 3. Generate AI summary
     const finalSummaryLength = summaryLength || settings.summary_length
+    // Truncate content to avoid context window limits (approx 20k chars)
+    const contentToProcess = news.original_content.length > 20000 
+      ? news.original_content.substring(0, 20000) + '...' 
+      : news.original_content
+
     const aiResult = await generateAiSummary(
       news.title,
-      news.original_content,
+      contentToProcess,
       {
         baseUrl: model.base_url,
         apiKey: model.api_key,
@@ -49,6 +54,30 @@ export default defineEventHandler(async (event) => {
       },
       finalSummaryLength
     )
+
+    // Try to generate Embedding
+    let embeddingVector = null
+    if (settings.embedding_model_id) {
+      const embedModelRes = await query('SELECT * FROM tnews.ai_models WHERE id = $1', [settings.embedding_model_id])
+      if (embedModelRes.rows.length > 0) {
+        const embedModel = embedModelRes.rows[0]
+        try {
+          const vec = await generateEmbedding(
+            `${news.title}\n${news.original_content.substring(0, 8000)}`,
+            {
+              baseUrl: embedModel.base_url,
+              apiKey: embedModel.api_key,
+              modelName: embedModel.model_name,
+              temperature: 0,
+              provider: embedModel.provider
+            }
+          )
+          embeddingVector = `[${vec.join(',')}]`
+        } catch (e) {
+          console.error(`Failed to generate embedding for news ${newsId}:`, e)
+        }
+      }
+    }
 
     // 4. Update the database
     await query(`
@@ -60,9 +89,10 @@ export default defineEventHandler(async (event) => {
         sentiment = $3,
         importance = $4,
         ai_category = $5,
+        embedding = COALESCE($6, embedding),
         updated_at = now()
-      WHERE id = $6
-    `, [aiResult.summary, aiResult.highlight, aiResult.sentiment, aiResult.importance, aiResult.category, newsId])
+      WHERE id = $7
+    `, [aiResult.summary, aiResult.highlight, aiResult.sentiment, aiResult.importance, aiResult.category, embeddingVector, newsId])
 
     // 5. Log to ai_summaries table
     await query(`

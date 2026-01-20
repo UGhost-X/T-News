@@ -283,15 +283,38 @@
           </p>
         </div>
         <div class="flex items-center gap-3 mt-4 sm:mt-0 w-full sm:w-auto">
-          <button
-            class="flex-1 sm:flex-none flex items-center justify-center bg-gradient-to-r from-primary to-secondary text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-            :disabled="isGeneratingAll" @click="generateAllSummaries()">
-            <i v-if="isGeneratingAll" class="fas fa-spinner fa-spin mr-2"></i>
-            <i v-else class="fas fa-robot mr-2"></i>
-            {{ isGeneratingAll ? '正在处理...' : '生成AI摘要' }}
+        <div ref="searchDropdownRef" class="relative flex items-center transition-all duration-300 ease-in-out" :class="isSearchExpanded ? 'w-full sm:w-64' : 'w-24'">
+          <button 
+            v-if="!isSearchExpanded"
+            @click.stop="expandSearch"
+            class="w-full h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl text-sm font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all"
+            title="搜索"
+          >
+            <i class="fas fa-search"></i>
+            <span class="text-sm font-medium">搜索</span>
           </button>
+          <div v-else class="relative w-full">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10"></i>
+            <input 
+              ref="searchInputRef"
+              v-model="vectorSearchQuery" 
+              @keydown.enter.prevent="handleSearch"
+              type="text" 
+              placeholder="新闻搜索" 
+              class="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:text-white text-sm shadow-sm"
+            />
+            <button 
+              v-if="vectorSearchQuery"
+              @click="clearSearch"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10"
+            >
+              <i class="fas fa-times-circle"></i>
+            </button>
+          </div>
+        </div>
+
           <button
-            class="flex-1 sm:flex-none flex items-center justify-center bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+            class="flex-1 sm:flex-none flex items-center justify-center bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all"
             @click="refreshNews()">
             <i class="fas fa-sync-alt mr-2"></i>
             刷新
@@ -299,7 +322,8 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2 mb-3 overflow-x-auto pb-2 no-scrollbar">
+
+      <div class="flex items-center gap-2 mb-3  pb-2 no-scrollbar">
         <button
           class=" px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all"
           :class="currentCategory === 'all' 
@@ -381,6 +405,12 @@
               <span v-if="news.aiHighlight"
                 class="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm">
                 <i class="fas fa-fire mr-1"></i>AI重点
+              </span>
+              <span
+                v-if="news.relevance || news.similarity"
+                class="text-[11px] px-2.5 py-1 rounded-lg font-semibold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-800/50"
+              >
+                匹配度 {{ news.relevance ?? news.similarity }}
               </span>
             </div>
           </div>
@@ -474,7 +504,7 @@
             class="flex items-start p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer"
             @click="openNewsDetail(topic)">
             <div class="text-2xl font-black mr-4 w-6 text-center italic"
-              :class="[index === 0 ? 'text-orange-500' : index === 1 ? 'text-slate-400' : index === 2 ? 'text-emerald-500' : 'text-slate-200 dark:text-slate-700']">
+              :class="[index === 0 ? 'text-orange-500' : index === 1 ? 'text-purple-400' : index === 2 ? 'text-emerald-500' : 'text-slate-200 dark:text-slate-700']">
               {{ index + 1 }}
             </div>
             <div class="flex-1">
@@ -768,7 +798,6 @@ onMounted(() => {
   }
 })
 
-
 const rssContextMenu = reactive({
   show: false,
   x: 0,
@@ -917,13 +946,17 @@ const copyRssUrlFromMenu = () => {
   toast.success('链接已复制到剪贴板')
 }
 
-const fetchNewsData = async (sourceId?: string, pageNum: number = 1, isAiProcessed?: boolean, isAiHighlight?: boolean, isBookmarked?: boolean, publishedAfter?: string, limit?: number, category?: string) => {
-  const params: any = { page: pageNum, limit: limit ?? 20 }
+const fetchNewsData = async (sourceId?: string, pageNum: number = 1, isAiProcessed?: boolean, isAiHighlight?: boolean, isBookmarked?: boolean, publishedAfter?: string, limit?: number, category?: string, vectorQuery?: string) => {
+  const resolvedLimit = limit ?? pageSize
+  const params: any = { page: pageNum, limit: resolvedLimit }
   if (sourceId && sourceId !== 'all') {
     params.sourceId = sourceId
   }
   if (category && category !== 'all') {
     params.aiCategory = category
+  }
+  if (vectorQuery) {
+    params.vectorQuery = vectorQuery
   }
   if (isAiProcessed) {
     params.aiProcessed = 'true'
@@ -964,6 +997,7 @@ useHead({
   }
 })
 
+const pageSize = 20
 const newsData = ref<NewsItem[]>([])
 const trendingTopics = ref<TrendingTopic[]>([])
 const newsStats = ref({
@@ -977,8 +1011,21 @@ const newsStats = ref({
 
 const currentSource = ref<string>('all')
 const currentCategory = ref<string>('all')
+const vectorSearchQuery = ref('')
+const searchDropdownRef = ref<HTMLElement | null>(null)
+// const isSearchDropdownOpen = ref(false)
+// const searchResults = ref<NewsItem[]>([])
 const currentAiFilter = ref<'all' | 'ai-highlight' | 'ai-summary' | 'bookmarks'>('all')
 const processingNewsIds = ref<Set<number>>(new Set())
+
+watch(vectorSearchQuery, (value) => {
+  if (!value) {
+    // searchResults.value = []
+    // isSearchDropdownOpen.value = false
+  } else {
+    // isSearchDropdownOpen.value = true
+  }
+})
 
 const isUserMenuOpen = ref(false)
 const isEditProfileModalOpen = ref(false)
@@ -1066,15 +1113,50 @@ const newNewsCount = ref(0)
 const lastLatestDate = ref<string | undefined>(undefined)
 let pollingInterval: NodeJS.Timeout | null = null
 
+const isSearchExpanded = ref(false)
+const searchInputRef = ref<HTMLInputElement | null>(null)
 
 function stripHtml(html: string) {
   if (!html) return ''
   return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ')
 }
 
+const expandSearch = async () => {
+  isSearchExpanded.value = true
+  await nextTick()
+  searchInputRef.value?.focus()
+}
+
+const clearSearch = () => {
+  vectorSearchQuery.value = ''
+  searchInputRef.value?.focus()
+}
+
 function openNewsDetail(news: NewsItem) {
   selectedNews.value = news
   isNewsDetailOpen.value = true
+}
+
+const handleDocumentClick = (event: MouseEvent) => {
+  const target = event.target as Node
+  if (!searchDropdownRef.value || !target) return
+  if (!searchDropdownRef.value.contains(target)) {
+    if (!vectorSearchQuery.value) {
+      isSearchExpanded.value = false
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
+})
+
+const handleSearch = async () => {
+  await reloadNews()
 }
 
 const mainContentRef = ref<HTMLElement | null>(null)
@@ -1107,10 +1189,12 @@ function handleNewItemsClick() {
 
 async function loadMoreNews() {
   if (isFetchingMore.value || !hasMore.value) return
+  if (vectorSearchQuery.value) return
 
   isFetchingMore.value = true
   try {
     const nextPage = page.value + 1
+    const limit = pageSize
     const response = await fetchNewsData(
       currentSource.value,
       nextPage,
@@ -1118,12 +1202,13 @@ async function loadMoreNews() {
       currentAiFilter.value === 'ai-highlight',
       currentAiFilter.value === 'bookmarks',
       undefined,
-      undefined,
-      currentCategory.value
+      limit,
+      currentCategory.value,
+      vectorSearchQuery.value
     )
-    const newNews = response.items
+    const newNews = response.items.slice(0, limit)
 
-    if (newNews.length < 20) {
+    if (newNews.length < limit) {
       hasMore.value = false
     }
 
@@ -1156,6 +1241,8 @@ function scrollToTop() {
 function handleScroll(e: Event) {
   const target = e.target as HTMLElement
   showBackToTop.value = target.scrollTop > 400
+
+  if (vectorSearchQuery.value) return
 
   const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight
   if (scrollBottom < 100) {
@@ -1191,6 +1278,11 @@ const aiProcessedPercentage = computed(() => {
 })
 
 const filteredNews = computed(() => {
+  // Vector search results are already filtered and ranked by the backend
+  if (vectorSearchQuery.value) {
+    return newsData.value
+  }
+
   let items = [...newsData.value]
 
   if (currentSource.value !== 'all') {
@@ -1225,17 +1317,24 @@ async function reloadNews() {
       currentAiFilter.value === 'ai-highlight',
       currentAiFilter.value === 'bookmarks',
       undefined,
-      undefined,
-      currentCategory.value
+      pageSize,
+      currentCategory.value,
+      vectorSearchQuery.value
     )
-    newsData.value = response.items
+    const limit = pageSize
+    const limitedItems = vectorSearchQuery.value ? response.items : response.items.slice(0, limit)
+    newsData.value = limitedItems
     newsStats.value = response.stats
+    // searchResults.value = vectorSearchQuery.value ? limitedItems : []
     if (newsData.value.length > 0) {
       lastLatestDate.value = newsData.value[0]?.publishedAt
       newNewsCount.value = 0
     }
     displayedNews.value = filteredNews.value
-    if (newsData.value.length < 20) {
+    if (newsData.value.length < limit) {
+      hasMore.value = false
+    }
+    if (vectorSearchQuery.value) {
       hasMore.value = false
     }
 
@@ -1252,6 +1351,7 @@ async function loadInitialData() {
   page.value = 1
   hasMore.value = true
   try {
+    const limit = pageSize
     const [response, topics] = await Promise.all([
       fetchNewsData(
         currentSource.value,
@@ -1260,12 +1360,13 @@ async function loadInitialData() {
         currentAiFilter.value === 'ai-highlight',
         currentAiFilter.value === 'bookmarks',
         undefined,
-        undefined,
-        currentCategory.value
+        limit,
+        currentCategory.value,
+        vectorSearchQuery.value
       ),
       fetchTrendingTopicsData()
     ])
-    newsData.value = response.items
+    newsData.value = vectorSearchQuery.value ? response.items : response.items.slice(0, limit)
     newsStats.value = response.stats
     if (newsData.value.length > 0) {
       lastLatestDate.value = newsData.value[0]?.publishedAt
@@ -1273,7 +1374,10 @@ async function loadInitialData() {
     }
     trendingTopics.value = topics
     displayedNews.value = filteredNews.value
-    if (newsData.value.length < 20) {
+    if (newsData.value.length < limit) {
+      hasMore.value = false
+    }
+    if (vectorSearchQuery.value) {
       hasMore.value = false
     }
     autoGenerateSummaries(response.items)
@@ -1342,47 +1446,7 @@ async function addCustomRss() {
   closeModal()
 }
 
-async function generateAllSummaries() {
-  if (isGeneratingAll.value) return
 
-  const toProcess = displayedNews.value.filter(n => !n.aiProcessed)
-  if (toProcess.length === 0) {
-    toast.info('当前展示的新闻已全部生成过摘要')
-    return
-  }
-
-  isGeneratingAll.value = true
-  const modelName = summaryModel.value?.name || '默认模型'
-  const loadingToast = toast.loading(`正在为 ${toProcess.length} 条新闻生成AI摘要...`)
-
-  try {
-    let successCount = 0
-    for (const news of toProcess) {
-      if (processingNewsIds.value.has(news.id)) continue
-
-      try {
-        processingNewsIds.value.add(news.id)
-        const updates = await processAiSummary(news.id, aiSettings.summaryLength, modelName)
-        Object.assign(news, updates)
-        if (updates.aiProcessed) {
-          newsStats.value.aiProcessedCount++
-        }
-        successCount++
-      } catch (err) {
-        console.error(`Failed to process news ${news.id}:`, err)
-      } finally {
-        processingNewsIds.value.delete(news.id)
-      }
-    }
-
-    toast.success(`AI摘要处理完成！成功: ${successCount}/${toProcess.length}`, { id: loadingToast })
-  } catch (error) {
-    console.error('Failed to generate summaries:', error)
-    toast.error('AI摘要生成过程中出现错误', { id: loadingToast })
-  } finally {
-    isGeneratingAll.value = false
-  }
-}
 
 async function refreshNews() {
   isLoading.value = true
@@ -1418,7 +1482,8 @@ async function refreshNews() {
       currentAiFilter.value === 'bookmarks',
       undefined,
       undefined,
-      currentCategory.value
+      currentCategory.value,
+      vectorSearchQuery.value
     )
     newsData.value = response.items
     newsStats.value = response.stats

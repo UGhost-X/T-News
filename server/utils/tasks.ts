@@ -1,6 +1,6 @@
 import { query } from './db'
 import { refreshRssSource } from './rss'
-import { generateAiSummary } from './ai'
+import { generateAiSummary, generateEmbedding } from './ai'
 import { JSDOM } from 'jsdom'
 import { Readability } from '@mozilla/readability'
 import DOMPurify from 'isomorphic-dompurify'
@@ -321,6 +321,15 @@ export async function runRssUpdate() {
       results.push({ id: row.id, status: 'error', error: err.message })
     }
   }
+
+  // 刷新完成后，自动触发增量 Embedding 生成
+  try {
+    console.log('[Task] Starting incremental embedding generation after RSS update...')
+    await runEmbeddingGeneration()
+  } catch (err: any) {
+    console.error('[Task] Auto embedding generation failed:', err.message)
+  }
+
   return results
 }
 
@@ -357,6 +366,30 @@ export async function runAiSummary() {
         settings.summary_length
       )
 
+      // 尝试生成 Embedding
+      let embeddingVector = null
+      if (settings.embedding_model_id) {
+        const embedModelRes = await query('SELECT * FROM tnews.ai_models WHERE id = $1', [settings.embedding_model_id])
+        if (embedModelRes.rows.length > 0) {
+          const embedModel = embedModelRes.rows[0]
+          try {
+            const vec = await generateEmbedding(
+              `${news.title}\n${news.original_content.substring(0, 500)}`, // 组合标题和摘要/内容前缀
+              {
+                baseUrl: embedModel.base_url,
+                apiKey: embedModel.api_key,
+                modelName: embedModel.model_name,
+                temperature: 0,
+                provider: embedModel.provider
+              }
+            )
+            embeddingVector = `[${vec.join(',')}]`
+          } catch (e) {
+            console.error(`Failed to generate embedding for news ${news.id}:`, e)
+          }
+        }
+      }
+
       await query(`
         UPDATE tnews.news_items
         SET 
@@ -365,12 +398,69 @@ export async function runAiSummary() {
           ai_highlight = $2,
           sentiment = $3,
           importance = $4,
+          embedding = COALESCE($5, embedding),
           updated_at = now()
-        WHERE id = $5
-      `, [aiResult.summary, aiResult.highlight, aiResult.sentiment, aiResult.importance, news.id])
+        WHERE id = $6
+      `, [aiResult.summary, aiResult.highlight, aiResult.sentiment, aiResult.importance, embeddingVector, news.id])
 
       results.push({ id: news.id, status: 'success' })
     } catch (err: any) {
+      results.push({ id: news.id, status: 'error', error: err.message })
+    }
+  }
+  return results
+}
+
+export async function runEmbeddingGeneration() {
+  const settingsRes = await query('SELECT * FROM tnews.ai_settings LIMIT 1')
+  const settings = settingsRes.rows[0]
+  
+  if (!settings?.embedding_model_id) {
+    throw new Error('Embedding model not configured')
+  }
+
+  const modelRes = await query('SELECT * FROM tnews.ai_models WHERE id = $1', [settings.embedding_model_id])
+  if (modelRes.rows.length === 0) {
+    throw new Error('Embedding model not found')
+  }
+  const model = modelRes.rows[0]
+
+  // 获取没有 embedding 的新闻
+  const newsRes = await query(
+    'SELECT id, title, original_content, content_snippet FROM tnews.news_items WHERE embedding IS NULL ORDER BY published_at DESC LIMIT 50'
+  )
+
+  const results = []
+  for (const news of newsRes.rows) {
+    try {
+      // 优先使用 original_content，如果太长截取前 8000 字符
+      const contentText = news.original_content 
+        ? news.original_content.substring(0, 8000) 
+        : (news.content_snippet || news.title)
+      
+      const textToEmbed = `${news.title}\n${contentText}`
+
+      const vec = await generateEmbedding(
+        textToEmbed,
+        {
+          baseUrl: model.base_url,
+          apiKey: model.api_key,
+          modelName: model.model_name,
+          temperature: 0,
+          provider: model.provider
+        }
+      )
+      
+      const vectorStr = `[${vec.join(',')}]`
+
+      await query(
+        'UPDATE tnews.news_items SET embedding = $1 WHERE id = $2',
+        [vectorStr, news.id]
+      )
+
+      results.push({ id: news.id, status: 'success' })
+    } catch (err: any) {
+      console.error(`Failed to generate embedding for news ${news.id}:`, err)
       results.push({ id: news.id, status: 'error', error: err.message })
     }
   }

@@ -240,6 +240,7 @@ CREATE TABLE IF NOT EXISTS tnews.ai_settings (
   summary_length integer NOT NULL DEFAULT 5,
   sentiment_sensitivity integer NOT NULL DEFAULT 7,
   importance_threshold integer NOT NULL DEFAULT 6,
+  match_threshold double precision NOT NULL DEFAULT 0.3,
   active_model_id text,
   updated_at timestamptz NOT NULL DEFAULT now()
 );

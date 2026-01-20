@@ -8,6 +8,7 @@ export default defineEventHandler(async (event) => {
       id: row.id,
       name: row.name,
       provider: row.provider,
+      type: row.type,
       modelName: row.model_name,
       baseUrl: row.base_url || '',
       apiKey: row.api_key || '',

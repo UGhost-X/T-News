@@ -9,6 +9,9 @@ const aiSettings = reactive<AiSettings>({
   summaryModelId: undefined,
   translationModelId: undefined,
   commentModelId: undefined,
+   embeddingModelId: undefined,
+   rerankModelId: undefined,
+   matchThreshold: 0.3,
   models: []
 })
 
@@ -31,6 +34,9 @@ export const useAiConfig = () => {
         aiSettings.summaryModelId = settings.summaryModelId
         aiSettings.translationModelId = settings.translationModelId
         aiSettings.commentModelId = settings.commentModelId
+        aiSettings.embeddingModelId = settings.embeddingModelId
+        aiSettings.rerankModelId = settings.rerankModelId
+        aiSettings.matchThreshold = settings.matchThreshold ?? 0.3
         
         // Fallback: If no specific model is set, try to use the first available model
         const firstModelId = aiSettings.models[0]?.id
@@ -62,7 +68,10 @@ export const useAiConfig = () => {
           importanceThreshold: aiSettings.importanceThreshold,
           summaryModelId: aiSettings.summaryModelId,
           translationModelId: aiSettings.translationModelId,
-          commentModelId: aiSettings.commentModelId
+          commentModelId: aiSettings.commentModelId,
+          embeddingModelId: aiSettings.embeddingModelId,
+          rerankModelId: aiSettings.rerankModelId,
+          matchThreshold: aiSettings.matchThreshold
         }
       })
     } catch (e) {
@@ -275,16 +284,22 @@ export const useAiConfig = () => {
   }
 
   // Watch for simple settings changes and save
-  watch([
-    () => aiSettings.summaryLength,
-    () => aiSettings.sentimentSensitivity,
-    () => aiSettings.importanceThreshold,
-    () => aiSettings.summaryModelId,
-    () => aiSettings.translationModelId,
-    () => aiSettings.commentModelId
-  ], () => {
-    saveSettings()
-  })
+  watch(
+    [
+      () => aiSettings.summaryLength,
+      () => aiSettings.sentimentSensitivity,
+      () => aiSettings.importanceThreshold,
+      () => aiSettings.summaryModelId,
+      () => aiSettings.translationModelId,
+      () => aiSettings.commentModelId,
+      () => aiSettings.embeddingModelId,
+      () => aiSettings.rerankModelId,
+      () => aiSettings.matchThreshold
+    ],
+    () => {
+      saveSettings()
+    }
+  )
 
   return {
     aiSettings,

@@ -1,4 +1,4 @@
-import { SUMMARY_PROMPT, TRANSLATION_PROMPT, STRUCTURED_TRANSLATION_PROMPT } from './ai-prompts'
+import { SUMMARY_PROMPT, TRANSLATION_PROMPT, QUERY_TRANSLATION_PROMPT, STRUCTURED_TRANSLATION_PROMPT } from './ai-prompts'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { SocksProxyAgent } from 'socks-proxy-agent'
 import { getProxyUrl } from './proxy'
@@ -146,14 +146,43 @@ async function callAiApi(
       'Authorization': `Bearer ${modelConfig.apiKey}`
     }
     
-    const response: any = await $fetch(url, {
-      method: 'POST',
-      headers,
-      body,
-      agent
-    })
-    
-    return response.choices[0].message.content
+    try {
+      const response: any = await $fetch(url, {
+        method: 'POST',
+        headers,
+        body,
+        agent
+      })
+      
+      if (!response?.choices?.[0]?.message?.content) {
+        console.error('[AI API Error] Invalid response structure:', JSON.stringify(response, null, 2))
+        throw new Error('Invalid response structure from AI provider')
+      }
+
+      return response.choices[0].message.content
+    } catch (error: any) {
+      // Retry without response_format if 400 error and jsonMode is enabled
+      // This handles models that don't support response_format: { type: 'json_object' }
+      if (jsonMode && error.statusCode === 400 && body.response_format) {
+        console.warn('AI API returned 400 with json_object response_format, retrying without it...')
+        delete body.response_format
+        
+        const response: any = await $fetch(url, {
+          method: 'POST',
+          headers,
+          body,
+          agent
+        })
+        
+        if (!response?.choices?.[0]?.message?.content) {
+          console.error('[AI API Error] Invalid response structure (retry):', JSON.stringify(response, null, 2))
+          throw new Error('Invalid response structure from AI provider (retry)')
+        }
+
+        return response.choices[0].message.content
+      }
+      throw error
+    }
   }
 }
 
@@ -187,9 +216,11 @@ export async function generateAiSummary(
 
 export async function generateAiTranslation(
   content: string,
-  modelConfig: ModelConfig
+  modelConfig: ModelConfig,
+  targetLang: 'zh' | 'en' = 'zh'
 ): Promise<string> {
-  const prompt = TRANSLATION_PROMPT.replace('{content}', content)
+  const promptTemplate = targetLang === 'en' ? QUERY_TRANSLATION_PROMPT : TRANSLATION_PROMPT
+  const prompt = promptTemplate.replace('{content}', content)
   return await callAiApi(modelConfig, [{ role: 'user', content: prompt }], false)
 }
 
@@ -219,5 +250,321 @@ export async function generateStructuredTranslation(
   } catch (e) {
     console.error('Failed to parse structured translation:', resultText)
     throw new Error('Invalid JSON response from AI for structured translation')
+  }
+}
+
+export async function generateEmbedding(
+  text: string,
+  modelConfig: ModelConfig
+): Promise<number[]> {
+  const agent = await getProxyAgent()
+  
+  if (modelConfig.provider === 'google') {
+    // Google Embedding API
+    const baseUrl = modelConfig.baseUrl || 'https://generativelanguage.googleapis.com/v1beta'
+    const model = modelConfig.modelName.startsWith('models/') ? modelConfig.modelName.replace('models/', '') : modelConfig.modelName
+    
+    const url = `${baseUrl.replace(/\/$/, '')}/models/${model}:embedContent`
+    
+    const headers: any = { 'Content-Type': 'application/json' }
+    if (modelConfig.apiKey) headers['x-goog-api-key'] = modelConfig.apiKey
+    
+    const body: any = {
+      content: { parts: [{ text }] },
+      model: `models/${model}`
+    }
+    
+    const response: any = await $fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      agent
+    })
+    
+    if (response.embedding && response.embedding.values) {
+      return response.embedding.values
+    }
+    throw new Error('No embedding in Google AI response')
+    
+  } else {
+    // OpenAI Compatible
+    const baseUrl = modelConfig.baseUrl || 'https://api.openai.com/v1'
+    const url = `${baseUrl.replace(/\/$/, '')}/embeddings`
+    
+    const body: any = {
+      model: modelConfig.modelName,
+      input: text
+    }
+    
+    const headers: any = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${modelConfig.apiKey}`
+    }
+    
+    const response: any = await $fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      agent
+    })
+    
+    return response.data[0].embedding
+  }
+}
+
+async function callNativeRerankApi(
+  query: string,
+  documents: string[],
+  modelConfig: ModelConfig
+): Promise<{ index: number; relevance_score: number }[]> {
+  const agent = await getProxyAgent()
+  let baseUrl = modelConfig.baseUrl || 'https://api.openai.com/v1'
+  baseUrl = baseUrl.replace(/\/$/, '')
+  baseUrl = baseUrl.replace(/\/chat\/completions$/, '')
+  const url = `${baseUrl}/rerank`
+  
+  const body = {
+    model: modelConfig.modelName,
+    query: query,
+    documents: documents,
+    top_n: documents.length,
+    return_documents: false
+  }
+  
+  const headers: any = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${modelConfig.apiKey}`
+  }
+  
+  console.log(`[Rerank] Calling Native Rerank API: ${url} for model ${modelConfig.modelName}`)
+
+  let response: any
+  try {
+    response = await $fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      agent
+    })
+  } catch (e: any) {
+    if (e.statusCode === 400) {
+      console.warn(`[Rerank] First attempt failed with 400, retrying with minimal payload...`)
+      const minimalBody = {
+        model: modelConfig.modelName,
+        query: query,
+        documents: documents
+      }
+      try {
+        response = await $fetch(url, {
+          method: 'POST',
+          headers,
+          body: minimalBody,
+          agent
+        })
+      } catch (retryError: any) {
+        console.error(`[Rerank] Minimal payload also failed:`, retryError.data || retryError.message)
+        throw retryError
+      }
+    } else {
+      throw e
+    }
+  }
+  
+  if (response.results) return response.results
+  if (response.data) return response.data 
+  
+  throw new Error('Invalid response from Rerank API')
+}
+
+const MAX_RERANK_QUERY_CHARS = 80
+const MAX_RERANK_DOC_CHARS = 400
+
+function truncateText(text: string, maxChars: number) {
+  if (!text) return ''
+  if (text.length <= maxChars) return text
+  return text.slice(0, maxChars)
+}
+
+type RerankItem = {
+  id: number
+  title: string
+  contentSnippet?: string
+  originalContent?: string
+  similarity?: string
+  relevance?: string
+}
+
+export async function rerankNewsItems(
+  queryText: string,
+  items: RerankItem[],
+  modelConfig: ModelConfig
+): Promise<RerankItem[]> {
+  if (!items || items.length <= 1) return items
+
+  const isLikelyReranker = modelConfig.modelName.toLowerCase().includes('rerank') || 
+                          modelConfig.modelName.toLowerCase().includes('bge')
+
+  if (isLikelyReranker) {
+      try {
+          const trimmedQuery = truncateText(queryText, MAX_RERANK_QUERY_CHARS)
+          const docs = items.map(item => truncateText(`${item.title}\n${item.contentSnippet || item.originalContent || ''}`, MAX_RERANK_DOC_CHARS))
+          const results = await callNativeRerankApi(trimmedQuery, docs, modelConfig)
+          
+          const rankedItems: RerankItem[] = []
+          for (const res of results) {
+            const item = items[res.index]
+            if (!item) continue
+            rankedItems.push({
+              ...item,
+              relevance: res.relevance_score.toFixed(4)
+            })
+          }
+          
+          // Sort by relevance desc
+          rankedItems.sort((a, b) => parseFloat(b.relevance!) - parseFloat(a.relevance!))
+          
+          // Append any missing items
+          const rankedIds = new Set(rankedItems.map(i => i.id))
+          for (const item of items) {
+              if (!rankedIds.has(item.id)) {
+                  rankedItems.push(item)
+              }
+          }
+          
+          return rankedItems
+      } catch (e: any) {
+          const errorMessage = e?.data?.error?.message || e?.message || ''
+          if (errorMessage.includes('maximum context length')) {
+            return items
+          }
+          console.warn('Native Rerank API failed, falling back to Chat API:', e)
+      }
+  }
+
+  const payload = {
+    query: truncateText(queryText, MAX_RERANK_QUERY_CHARS),
+    items: items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      content: truncateText(item.contentSnippet || item.originalContent || '', MAX_RERANK_DOC_CHARS)
+    }))
+  }
+
+  const prompt = `
+你是一个搜索重排序模型。请根据用户查询 \`query\` 与候选新闻的相关性，对新闻进行从高到低排序，并给出相关性得分（0-1之间，1为最相关）。
+
+要求：
+1. 只使用提供的候选列表中的 id，不要生成新的 id
+2. 不要返回任何解释文字
+3. 只返回 JSON，格式如下：
+   {
+     "ranked": [
+       {"id": id1, "score": 0.95},
+       {"id": id2, "score": 0.88},
+       ...
+     ]
+   }
+
+下面是数据：
+${JSON.stringify(payload, null, 2)}
+`
+
+  try {
+    const resultText = await callAiApi(
+      modelConfig,
+      [{ role: 'user', content: prompt }],
+      true
+    )
+
+    let parsed: any
+    try {
+      parsed = JSON.parse(resultText)
+    } catch (e) {
+      // 有些模型会返回包了一层字符串的 JSON
+      parsed = JSON.parse(resultText.replace(/^[^{\[]+/, '').replace(/[^}\]]+$/, ''))
+    }
+
+    let rankedList: { id: number; score: number }[] | undefined
+
+    if (parsed && typeof parsed === 'object') {
+       if (Array.isArray(parsed.ranked)) {
+         rankedList = parsed.ranked
+       } else if (Array.isArray(parsed.order)) {
+         // Fallback for old format or model hallucination
+         rankedList = parsed.order.map((id: number) => ({ id, score: 0 }))
+       }
+    } else if (Array.isArray(parsed)) {
+       // Direct array
+       if (parsed.length > 0 && typeof parsed[0] === 'object' && 'id' in parsed[0]) {
+          rankedList = parsed
+       } else if (parsed.every(v => typeof v === 'number')) {
+          rankedList = parsed.map((id: number) => ({ id, score: 0 }))
+       }
+    }
+
+    if (!rankedList) {
+      console.warn('Rerank response does not contain valid ranked list, fallback to original order')
+      return items
+    }
+
+    const byId = new Map(items.map((item) => [item.id, item]))
+    const ranked: typeof items = []
+
+    for (const item of rankedList) {
+      const found = byId.get(item.id)
+      if (found) {
+        // Add score to item if available and not 0 (or if 0 but explicitly returned)
+        const newItem = { ...found }
+        if (item.score !== undefined) {
+           // Store as 'relevance' to distinguish from vector 'similarity'
+           // @ts-ignore
+           newItem.relevance = item.score.toFixed(4)
+        }
+        ranked.push(newItem)
+        byId.delete(item.id)
+      }
+    }
+
+    // 把未出现在结果中的剩余项追加在后面
+    for (const rest of byId.values()) {
+      ranked.push(rest)
+    }
+
+    return ranked
+  } catch (e: any) {
+    // If Chat API fails and we haven't tried Rerank API yet, try it now
+    if (!isLikelyReranker && (
+        e.message?.includes('Chat Completions API') || 
+        e.message?.includes('Invalid response structure')
+    )) {
+         console.log('Chat API failed (likely not a chat model), trying Native Rerank API as fallback...')
+         try {
+            const docs = items.map(item => `${item.title}\n${item.contentSnippet || item.originalContent || ''}`)
+            const results = await callNativeRerankApi(queryText, docs, modelConfig)
+            const rankedItems: RerankItem[] = []
+            for (const res of results) {
+              const item = items[res.index]
+              if (!item) continue
+              rankedItems.push({
+                ...item,
+                relevance: res.relevance_score.toFixed(4)
+              })
+            }
+              rankedItems.sort((a, b) => parseFloat(b.relevance!) - parseFloat(a.relevance!))
+              
+              const rankedIds = new Set(rankedItems.map(i => i.id))
+              for (const item of items) {
+                  if (!rankedIds.has(item.id)) {
+                      rankedItems.push(item)
+                  }
+              }
+              return rankedItems
+         } catch (rerankError) {
+             console.error('Both Chat API and Rerank API failed. Original error:', e)
+         }
+    } else {
+        console.error('Failed to rerank news items:', e)
+    }
+    return items
   }
 }

@@ -35,6 +35,18 @@ export const TRANSLATION_PROMPT = `
 {content}
 `;
 
+export const QUERY_TRANSLATION_PROMPT = `
+You are a professional translator. Please translate the following search query into English.
+
+Requirements:
+1. Translate accurately and concisely.
+2. If the query contains technical terms, translate them accurately.
+3. Only return the translated text, do not include any explanation or other content.
+
+Query:
+{content}
+`;
+
 export const STRUCTURED_TRANSLATION_PROMPT = `
 你是一个专业的翻译专家。我将提供一组文本段落，请将它们逐一翻译成中文。
 

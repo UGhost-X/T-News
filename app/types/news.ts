@@ -29,6 +29,8 @@ export type NewsItem = {
   similarSources: string[]
   tags: string[]
   bookmarked?: boolean
+  similarity?: string
+  relevance?: string
 }
 
 export type TrendingTopic = NewsItem & {
@@ -42,15 +44,20 @@ export type AiSettings = {
   summaryModelId?: string
   translationModelId?: string
   commentModelId?: string
+  embeddingModelId?: string
+  rerankModelId?: string
+  matchThreshold?: number
   models: AiModelConfig[]
 }
 
 export type AiProvider = 'openai' | 'deepseek' | 'ollama' | 'anthropic' | 'google' | 'custom'
+export type AiModelType = 'llm' | 'embedding' | 'rerank'
 
 export type AiModelConfig = {
   id: string
   name: string
   provider: AiProvider
+  type: AiModelType
   baseUrl?: string
   apiKey?: string
   modelName: string

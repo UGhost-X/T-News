@@ -1,5 +1,6 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { refreshRssSource } from '../../utils/rss'
+import { runEmbeddingGeneration } from '../../utils/tasks'
 
 export default defineEventHandler(async (event) => {
   const params = getQuery(event)
@@ -13,7 +14,17 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await refreshRssSource(sourceId)
+    const result = await refreshRssSource(sourceId)
+    
+    // 触发增量 Embedding 生成
+    try {
+      // 不阻塞主响应，后台执行
+      runEmbeddingGeneration().catch(e => console.error('Background embedding generation failed:', e))
+    } catch (e) {
+      console.error('Failed to trigger embedding generation:', e)
+    }
+
+    return result
   } catch (error: any) {
     console.error('RSS Refresh Error:', error)
     throw createError({

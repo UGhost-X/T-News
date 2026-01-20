@@ -134,6 +134,52 @@
                   </Select>
                   <p class="text-xs text-muted-foreground">用于生成新闻评论和观点分析</p>
                 </div>
+
+                <!-- Embedding Model -->
+                <div class="space-y-3">
+                  <Label class="flex items-center gap-2">
+                    <Database class="h-4 w-4 text-muted-foreground" />
+                    Embedding 模型
+                  </Label>
+                  <Select v-model="aiSettings.embeddingModelId">
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择模型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem 
+                        v-for="model in aiSettings.models.filter(m => m.type === 'embedding')" 
+                        :key="model.id" 
+                        :value="model.id"
+                      >
+                        {{ model.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p class="text-xs text-muted-foreground">用于生成文本向量，支持全文搜索</p>
+                </div>
+
+                <!-- Rerank Model -->
+                <div class="space-y-3">
+                  <Label class="flex items-center gap-2">
+                    <ArrowDownUp class="h-4 w-4 text-muted-foreground" />
+                    Rerank 模型
+                  </Label>
+                  <Select v-model="aiSettings.rerankModelId">
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择模型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem 
+                        v-for="model in aiSettings.models.filter(m => m.type === 'rerank')" 
+                        :key="model.id" 
+                        :value="model.id"
+                      >
+                        {{ model.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p class="text-xs text-muted-foreground">用于搜索结果重排序，提高准确性</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -165,7 +211,17 @@
                       <component :is="getProviderLucideIcon(model.provider)" class="h-5 w-5 text-primary" />
                     </div>
                     <div class="overflow-hidden">
-                      <div class="font-bold truncate">{{ model.name }}</div>
+                      <div class="font-bold truncate flex items-center gap-2">
+                        {{ model.name }}
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full border" 
+                          :class="{
+                            'bg-blue-50 text-blue-600 border-blue-200': model.type === 'llm' || !model.type,
+                            'bg-green-50 text-green-600 border-green-200': model.type === 'embedding',
+                            'bg-purple-50 text-purple-600 border-purple-200': model.type === 'rerank'
+                          }">
+                          {{ model.type === 'embedding' ? 'Embedding' : model.type === 'rerank' ? 'Rerank' : 'LLM' }}
+                        </span>
+                      </div>
                       <div class="text-xs text-muted-foreground truncate">
                         {{ model.baseUrl || '官方 API' }} | {{ model.modelName }}
                       </div>
@@ -219,6 +275,30 @@
                   :min="1"
                   :max="10" 
                   :step="1" 
+                />
+              </div>
+
+              <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                  <div class="space-y-0.5">
+                    <Label class="text-base flex items-center gap-2">
+                      <Search class="h-4 w-4 text-sky-500" />
+                      匹配度阈值
+                    </Label>
+                    <p class="text-sm text-muted-foreground">
+                      低于此匹配度的搜索结果将被过滤
+                    </p>
+                  </div>
+                  <span class="px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-600 text-xs font-bold border border-sky-500/20">
+                    {{ matchThresholdText }}
+                  </span>
+                </div>
+                <Slider 
+                  :model-value="[aiSettings.matchThreshold ?? 0.3]" 
+                  @update:model-value="(val) => { if (val && typeof val[0] === 'number') aiSettings.matchThreshold = val[0] }"
+                  :min="0.1"
+                  :max="0.9" 
+                  :step="0.05" 
                 />
               </div>
 
@@ -440,6 +520,42 @@
         
         <div class="space-y-6 py-4">
           <div class="space-y-3">
+            <Label>模型类型</Label>
+            <div class="grid grid-cols-3 gap-3">
+              <div 
+                @click="modelForm.type = 'llm'"
+                class="flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition-all"
+                :class="modelForm.type === 'llm' 
+                  ? 'border-blue-500 bg-blue-50 text-blue-600' 
+                  : 'border-muted text-muted-foreground hover:border-accent'"
+              >
+                <Brain class="h-6 w-6 mb-1" />
+                <span class="text-xs font-bold">LLM</span>
+              </div>
+              <div 
+                @click="modelForm.type = 'embedding'"
+                class="flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition-all"
+                :class="modelForm.type === 'embedding' 
+                  ? 'border-green-500 bg-green-50 text-green-600' 
+                  : 'border-muted text-muted-foreground hover:border-accent'"
+              >
+                <Database class="h-6 w-6 mb-1" />
+                <span class="text-xs font-bold">Embedding</span>
+              </div>
+              <div 
+                @click="modelForm.type = 'rerank'"
+                class="flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition-all"
+                :class="modelForm.type === 'rerank' 
+                  ? 'border-purple-500 bg-purple-50 text-purple-600' 
+                  : 'border-muted text-muted-foreground hover:border-accent'"
+              >
+                <ArrowDownUp class="h-6 w-6 mb-1" />
+                <span class="text-xs font-bold">Rerank</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3">
             <Label>提供商</Label>
             <div class="grid grid-cols-3 gap-3">
               <div 
@@ -629,7 +745,7 @@ import { toast } from 'vue-sonner'
 import { useAiConfig } from '~/composables/useAiConfig'
 import { useProxyConfig } from '~/composables/useProxyConfig'
 import { useRssConfig } from '~/composables/useRssConfig'
-import type { AiProvider, AiModelConfig } from '~/types/news'
+import type { AiProvider, AiModelConfig, AiModelType } from '~/types/news'
 import { rssCategories } from '~/config/categories'
 import { 
   ArrowLeft, 
@@ -685,7 +801,9 @@ import {
   BookOpen, 
   Megaphone, 
   Book, 
-  Microscope
+  Microscope,
+  Database,
+  ArrowDownUp
 } from 'lucide-vue-next'
 
 const { 
@@ -748,6 +866,11 @@ const importanceThresholdText = computed(() => {
   return '极高'
 })
 
+const matchThresholdText = computed(() => {
+  const val = aiSettings.matchThreshold ?? 0.3
+  return `${Math.round(val * 100)}%`
+})
+
 // Theme Logic
 const isDarkMode = ref(false)
 const toggleTheme = () => {
@@ -757,19 +880,14 @@ const toggleTheme = () => {
 }
 
 onMounted(async () => {
-  // Theme initialization
-  if (import.meta.client) {
-    const savedTheme = localStorage.getItem('theme')
-    isDarkMode.value = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    document.documentElement.classList.toggle('dark', isDarkMode.value)
-  }
-
-  // Fetch settings from DB
   await Promise.all([
     fetchAiSettings(),
     fetchProxySettings(),
     fetchRssSources()
   ])
+  const savedTheme = localStorage.getItem('theme')
+  isDarkMode.value = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.classList.toggle('dark', isDarkMode.value)
 })
 
 // Model Modal Logic
@@ -799,6 +917,7 @@ const baseUrlPlaceholder = computed(() => {
 const modelForm = reactive({
   name: '',
   provider: 'openai' as AiProvider,
+  type: 'llm' as AiModelType,
   baseUrl: '',
   modelName: '',
   apiKey: '',
@@ -817,6 +936,7 @@ const openAddModelModal = () => {
   Object.assign(modelForm, {
     name: '',
     provider: 'openai',
+    type: 'llm',
     baseUrl: '',
     modelName: '',
     apiKey: '',
@@ -831,6 +951,7 @@ const editModel = (model: AiModelConfig) => {
   fetchedModels.value = []
   Object.assign(modelForm, {
     ...model,
+    type: model.type || 'llm',
     baseUrl: model.baseUrl ?? '',
     apiKey: model.apiKey ?? '',
     modelName: model.modelName ?? '',
